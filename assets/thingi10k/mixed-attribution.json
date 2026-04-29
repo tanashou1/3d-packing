@@ -8,6 +8,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65582.stl",
     "num_faces_original": 576,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        4.285714285714286,
+        8.571428571428571,
+        12.0
+      ],
+      "extent": [
+        4.285714285714286,
+        8.571428571428571,
+        12.0
+      ]
+    },
     "local_file": "65582_decorated_box.stl"
   },
   {
@@ -19,6 +36,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65583.stl",
     "num_faces_original": 468,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        0.3077142857142857,
+        8.571428571428571,
+        12.0
+      ],
+      "extent": [
+        0.3077142857142857,
+        8.571428571428571,
+        12.0
+      ]
+    },
     "local_file": "65583_decorated_box.stl"
   },
   {
@@ -30,6 +64,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65584.stl",
     "num_faces_original": 244,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        4.285714285714286,
+        8.571428571428571,
+        12.0
+      ],
+      "extent": [
+        4.285714285714286,
+        8.571428571428571,
+        12.0
+      ]
+    },
     "local_file": "65584_decorated_box.stl"
   },
   {
@@ -41,6 +92,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65614.stl",
     "num_faces_original": 862,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.0,
+        6.627415424504094,
+        1.2343561973503683
+      ],
+      "extent": [
+        12.0,
+        6.627415424504094,
+        1.2343561973503683
+      ]
+    },
     "local_file": "65614_fairchild_22_aircraft.stl"
   },
   {
@@ -52,6 +120,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65615.stl",
     "num_faces_original": 862,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.0,
+        6.62741556354137,
+        1.2343562232460623
+      ],
+      "extent": [
+        12.0,
+        6.62741556354137,
+        1.2343562232460623
+      ]
+    },
     "local_file": "65615_fairchild_22_aircraft.stl"
   },
   {
@@ -63,6 +148,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/49166.stl",
     "num_faces_original": 1132,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.0,
+        6.2674260869565215,
+        0.8695652173913043
+      ],
+      "extent": [
+        12.0,
+        6.2674260869565215,
+        0.8695652173913043
+      ]
+    },
     "local_file": "49166_tri_track_dual_servo_robot_tank_chassis.stl"
   },
   {
@@ -74,6 +176,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/57355.stl",
     "num_faces_original": 1564,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.0,
+        11.98978917068617,
+        4.328244126341995
+      ],
+      "extent": [
+        12.0,
+        11.98978917068617,
+        4.328244126341995
+      ]
+    },
     "local_file": "57355_pl1q_vampire_the_3d_printable_quadcopter.stl"
   },
   {
@@ -85,6 +204,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/958471.stl",
     "num_faces_original": 1874,
     "normalized_max_dim": 12.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.0,
+        9.428754988041778,
+        5.786158358617362
+      ],
+      "extent": [
+        12.0,
+        9.428754988041778,
+        5.786158358617362
+      ]
+    },
     "local_file": "958471_flexmesh_2_1_snap_together_flexible_chainmail_me.stl"
   }
 ]

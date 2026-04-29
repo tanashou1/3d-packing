@@ -46,13 +46,24 @@ async function loadResult(result) {
   statusEl.textContent = `Loading ${result.title}...`;
   stats.innerHTML = [
     ["Packed objects", result.packedObjects],
+    result.inputObjects ? ["Input objects", result.inputObjects] : null,
     ["Tray", result.tray],
     ["Voxel", result.voxel],
     ["Voxel density", `${result.voxelDensity}%`],
     ["Mesh density", `${result.meshDensity}%`],
+    result.requiresStackingByBbox !== undefined
+      ? ["BBox stacking required", result.requiresStackingByBbox ? "yes" : "no"]
+      : null,
+    result.sumBboxFootprint !== undefined
+      ? ["Sum bbox footprint", result.sumBboxFootprint]
+      : null,
+    result.trayFootprint !== undefined ? ["Tray footprint", result.trayFootprint] : null,
+    result.sumBboxVolume !== undefined ? ["Sum bbox volume", result.sumBboxVolume] : null,
+    result.trayVolume !== undefined ? ["Tray volume", result.trayVolume] : null,
     ["Ray disassembly", result.rayDisassembly],
     ["Source", result.source],
   ]
+    .filter(Boolean)
     .map(([key, value]) => `<div class="stat"><span>${key}</span><strong>${value}</strong></div>`)
     .join("");
 

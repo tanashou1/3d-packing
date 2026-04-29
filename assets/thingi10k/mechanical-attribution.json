@@ -8,6 +8,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65561.stl",
     "num_faces_original": 548,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        13.0,
+        11.25626676521209,
+        1.8884150307855996
+      ],
+      "extent": [
+        13.0,
+        11.25626676521209,
+        1.8884150307855996
+      ]
+    },
     "local_file": "65561_tracked_base_for_small_robots.stl"
   },
   {
@@ -19,6 +36,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65564.stl",
     "num_faces_original": 1088,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        13.0,
+        6.501083254728059,
+        2.709417922543055
+      ],
+      "extent": [
+        13.0,
+        6.501083254728059,
+        2.709417922543055
+      ]
+    },
     "local_file": "65564_tracked_base_for_small_robots.stl"
   },
   {
@@ -30,6 +64,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/98330.stl",
     "num_faces_original": 1056,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        13.0,
+        13.0,
+        7.872536231884059
+      ],
+      "extent": [
+        13.0,
+        13.0,
+        7.872536231884059
+      ]
+    },
     "local_file": "98330_coffee_grinder.stl"
   },
   {
@@ -41,6 +92,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/49160.stl",
     "num_faces_original": 552,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.983169149139941,
+        13.0,
+        11.398931917391685
+      ],
+      "extent": [
+        12.983169149139941,
+        13.0,
+        11.398931917391685
+      ]
+    },
     "local_file": "49160_polycup.stl"
   },
   {
@@ -52,6 +120,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/49163.stl",
     "num_faces_original": 808,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.780847842543528,
+        13.0,
+        2.460257380772142
+      ],
+      "extent": [
+        10.780847842543528,
+        13.0,
+        2.460257380772142
+      ]
+    },
     "local_file": "49163_tri_track_dual_servo_robot_tank_chassis.stl"
   },
   {
@@ -63,6 +148,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/73736.stl",
     "num_faces_original": 2388,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.45074873171275,
+        13.0,
+        1.4791650654266377
+      ],
+      "extent": [
+        12.45074873171275,
+        13.0,
+        1.4791650654266377
+      ]
+    },
     "local_file": "73736_a_dodecahedron_speaker_for_desktop_printers.stl"
   },
   {
@@ -74,6 +176,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/73737.stl",
     "num_faces_original": 2430,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        12.869961539190058,
+        13.0,
+        0.5326856005009935
+      ],
+      "extent": [
+        12.869961539190058,
+        13.0,
+        0.5326856005009935
+      ]
+    },
     "local_file": "73737_a_dodecahedron_speaker_for_desktop_printers.stl"
   },
   {
@@ -85,6 +204,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311322.stl",
     "num_faces_original": 192,
     "normalized_max_dim": 13.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        13.0,
+        12.999458159477767,
+        0.9754603196341541
+      ],
+      "extent": [
+        13.0,
+        12.999458159477767,
+        0.9754603196341541
+      ]
+    },
     "local_file": "311322_p6_6_120_pinhole_camera.stl"
   }
 ]
