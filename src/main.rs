@@ -1200,7 +1200,7 @@ fn voxelize_mesh(mesh: &Mesh, rotation: Rotation, voxel: f32) -> Result<Oriented
         .collect::<Vec<_>>();
     let mut surface = vec![false; nx * ny * nz];
     for tri in &local {
-        rasterize_triangle(*tri, voxel, nx, ny, nz, &mut surface);
+        mark_intersecting_voxels(*tri, voxel, nx, ny, nz, &mut surface);
     }
     let occupied = fill_interior(&surface, nx, ny, nz);
     let voxel_count = occupied.iter().filter(|&&v| v).count();
@@ -1215,7 +1215,7 @@ fn voxelize_mesh(mesh: &Mesh, rotation: Rotation, voxel: f32) -> Result<Oriented
     })
 }
 
-fn rasterize_triangle(
+fn mark_intersecting_voxels(
     tri: [Vec3; 3],
     voxel: f32,
     nx: usize,
@@ -1223,26 +1223,80 @@ fn rasterize_triangle(
     nz: usize,
     grid: &mut [bool],
 ) {
-    let e0 = (tri[1] - tri[0]).length();
-    let e1 = (tri[2] - tri[1]).length();
-    let e2 = (tri[0] - tri[2]).length();
-    let steps = ((e0.max(e1).max(e2) / (voxel * 0.35)).ceil() as usize).max(1);
-    for i in 0..=steps {
-        for j in 0..=steps - i {
-            let u = i as f32 / steps as f32;
-            let v = j as f32 / steps as f32;
-            let w = 1.0 - u - v;
-            let p = tri[0] * w + tri[1] * u + tri[2] * v;
-            mark_point(p, voxel, nx, ny, nz, grid);
+    let (tri_min, tri_max) = bbox_of_triangle(&tri);
+    let x0 = voxel_floor(tri_min.x, voxel, nx);
+    let y0 = voxel_floor(tri_min.y, voxel, ny);
+    let z0 = voxel_floor(tri_min.z, voxel, nz);
+    let x1 = voxel_ceil_exclusive(tri_max.x, voxel, nx);
+    let y1 = voxel_ceil_exclusive(tri_max.y, voxel, ny);
+    let z1 = voxel_ceil_exclusive(tri_max.z, voxel, nz);
+
+    for z in z0..z1 {
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let min = Vec3::new(x as f32 * voxel, y as f32 * voxel, z as f32 * voxel);
+                let max = min + Vec3::new(voxel, voxel, voxel);
+                if triangle_intersects_aabb(tri, min, max) {
+                    grid[idx(x, y, z, nx, ny)] = true;
+                }
+            }
         }
     }
 }
 
-fn mark_point(p: Vec3, voxel: f32, nx: usize, ny: usize, nz: usize, grid: &mut [bool]) {
-    let x = ((p.x / voxel).floor() as isize).clamp(0, nx as isize - 1) as usize;
-    let y = ((p.y / voxel).floor() as isize).clamp(0, ny as isize - 1) as usize;
-    let z = ((p.z / voxel).floor() as isize).clamp(0, nz as isize - 1) as usize;
-    grid[idx(x, y, z, nx, ny)] = true;
+fn triangle_intersects_aabb(tri: [Vec3; 3], box_min: Vec3, box_max: Vec3) -> bool {
+    let (tri_min, tri_max) = bbox_of_triangle(&tri);
+    if !bbox_overlap((tri_min, tri_max), (box_min, box_max), 0.0) {
+        return false;
+    }
+
+    let center = (box_min + box_max) * 0.5;
+    let half = (box_max - box_min) * 0.5;
+    let v0 = tri[0] - center;
+    let v1 = tri[1] - center;
+    let v2 = tri[2] - center;
+    let vertices = [v0, v1, v2];
+
+    if axis_separates(Vec3::new(1.0, 0.0, 0.0), &vertices, half)
+        || axis_separates(Vec3::new(0.0, 1.0, 0.0), &vertices, half)
+        || axis_separates(Vec3::new(0.0, 0.0, 1.0), &vertices, half)
+    {
+        return false;
+    }
+
+    let e0 = v1 - v0;
+    let e1 = v2 - v1;
+    let e2 = v0 - v2;
+    let edges = [e0, e1, e2];
+    let box_axes = [
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(0.0, 0.0, 1.0),
+    ];
+    for edge in edges {
+        for box_axis in box_axes {
+            if axis_separates(edge.cross(box_axis), &vertices, half) {
+                return false;
+            }
+        }
+    }
+
+    let normal = e0.cross(e1);
+    !axis_separates(normal, &vertices, half)
+}
+
+fn axis_separates(axis: Vec3, vertices: &[Vec3; 3], half: Vec3) -> bool {
+    const EPS: f32 = 1.0e-6;
+    if axis.dot(axis) <= EPS {
+        return false;
+    }
+    let p0 = vertices[0].dot(axis);
+    let p1 = vertices[1].dot(axis);
+    let p2 = vertices[2].dot(axis);
+    let min = p0.min(p1).min(p2);
+    let max = p0.max(p1).max(p2);
+    let radius = half.x * axis.x.abs() + half.y * axis.y.abs() + half.z * axis.z.abs();
+    min > radius + EPS || max < -radius - EPS
 }
 
 fn fill_interior(surface: &[bool], nx: usize, ny: usize, nz: usize) -> Vec<bool> {
@@ -1782,6 +1836,35 @@ mod tests {
         let rotations = rotation_set(24);
         assert_eq!(rotations.len(), 24);
         assert!(rotations.iter().all(|r| determinant(r.m) == 1));
+    }
+
+    #[test]
+    fn triangle_aabb_overlap_marks_plane_slice_without_vertices_inside() {
+        let tri = [
+            Vec3::new(-1.0, -1.0, 0.5),
+            Vec3::new(2.0, -1.0, 0.5),
+            Vec3::new(-1.0, 2.0, 0.5),
+        ];
+        assert!(triangle_intersects_aabb(
+            tri,
+            Vec3::new(0.25, 0.25, 0.0),
+            Vec3::new(0.75, 0.75, 1.0)
+        ));
+    }
+
+    #[test]
+    fn conservative_voxelization_marks_every_intersected_cell() {
+        let tri = [
+            Vec3::new(0.0, 0.0, 0.5),
+            Vec3::new(3.0, 0.0, 0.5),
+            Vec3::new(0.0, 3.0, 0.5),
+        ];
+        let mut grid = vec![false; 4 * 4 * 2];
+        mark_intersecting_voxels(tri, 1.0, 4, 4, 2, &mut grid);
+        assert!(grid[idx(0, 0, 0, 4, 4)]);
+        assert!(grid[idx(1, 1, 0, 4, 4)]);
+        assert!(grid[idx(2, 0, 0, 4, 4)]);
+        assert!(!grid[idx(3, 3, 0, 4, 4)]);
     }
 
     #[test]
