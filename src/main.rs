@@ -24,6 +24,7 @@ enum Command {
         no_refine: bool,
         refine_margin: f32,
         no_ray_disassembly: bool,
+        post_opt_passes: usize,
     },
     Sample {
         output: PathBuf,
@@ -164,6 +165,7 @@ struct OrientedMesh {
 #[derive(Clone)]
 struct PlacedMesh {
     name: String,
+    source_index: usize,
     triangles: Vec<[Vec3; 3]>,
     offset: (usize, usize, usize),
     translation: Vec3,
@@ -236,6 +238,7 @@ fn main() -> Result<()> {
             no_refine,
             refine_margin,
             no_ray_disassembly,
+            post_opt_passes,
         } => {
             let tray = Tray::new(width, depth, height, voxel)?;
             let input_paths = collect_stl_inputs(&inputs)?;
@@ -261,6 +264,11 @@ fn main() -> Result<()> {
                 !no_refine,
                 refine_margin,
                 !no_ray_disassembly,
+                if no_ray_disassembly {
+                    0
+                } else {
+                    post_opt_passes
+                },
             )?;
             write_combined_stl(&out, &result.placed)
                 .with_context(|| format!("{} の書き込みに失敗しました", out.display()))?;
@@ -300,6 +308,7 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
     let mut no_refine = false;
     let mut refine_margin = 0.05;
     let mut no_ray_disassembly = false;
+    let mut post_opt_passes = 4;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -338,6 +347,11 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
                 refine_margin = parse_value(&args, i, "--refine-margin")?;
             }
             "--no-ray-disassembly" => no_ray_disassembly = true,
+            "--no-post-opt" => post_opt_passes = 0,
+            "--post-opt-passes" => {
+                i += 1;
+                post_opt_passes = parse_value(&args, i, "--post-opt-passes")?;
+            }
             "-h" | "--help" => bail!("{}", usage()),
             arg if arg.starts_with('-') => bail!("不明なpackオプションです: `{arg}`"),
             arg => inputs.push(PathBuf::from(arg)),
@@ -363,6 +377,7 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
         no_refine,
         refine_margin,
         no_ray_disassembly,
+        post_opt_passes,
     })
 }
 
@@ -399,19 +414,29 @@ where
 }
 
 fn usage() -> &'static str {
-    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す90度姿勢数。最大24（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
+    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す90度姿勢数。最大24（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
 }
 
 struct PackResult {
     placed: Vec<PlacedMesh>,
     unpacked: Vec<String>,
     ray_report: Option<RayDisassemblyReport>,
+    post_report: Option<PostOptimizationReport>,
 }
 
+#[derive(Clone)]
 struct RayDisassemblyReport {
     removed_by_rays: usize,
-    remaining_groups: Vec<Vec<String>>,
+    remaining_groups: Vec<Vec<usize>>,
     passes: usize,
+}
+
+struct PostOptimizationReport {
+    passes: usize,
+    attempted_groups: usize,
+    accepted_reinsertions: usize,
+    reinserted_objects: usize,
+    unresolved_groups: usize,
 }
 
 fn pack_meshes(
@@ -423,83 +448,50 @@ fn pack_meshes(
     refine: bool,
     refine_margin: f32,
     ray_disassembly: bool,
+    post_opt_passes: usize,
 ) -> Result<PackResult> {
     let mut occupied = vec![false; tray.len()];
     let mut placed = Vec::new();
     let mut unpacked = Vec::new();
 
-    for mesh in meshes {
-        eprintln!("{} を配置中...", mesh.name);
-        match search_placement(
+    for (source_index, mesh) in meshes.iter().enumerate() {
+        match place_mesh(
             mesh,
+            source_index,
             tray,
             rotations,
-            &occupied,
+            &mut occupied,
+            &placed,
             height_weight,
             interlock_free,
+            refine,
+            refine_margin,
+            None,
+            true,
         )? {
-            Some(best) => {
-                let discrete_translation = Vec3::new(
-                    best.offset.0 as f32 * tray.voxel,
-                    best.offset.1 as f32 * tray.voxel,
-                    best.offset.2 as f32 * tray.voxel,
-                );
-                let translation = if refine {
-                    refine_translation(
-                        &best.oriented,
-                        discrete_translation,
-                        &placed,
-                        tray,
-                        refine_margin,
-                    )
-                } else {
-                    discrete_translation
-                };
-                let refinement = translation - discrete_translation;
-                let triangles: Vec<[Vec3; 3]> = best
-                    .oriented
-                    .triangles
-                    .iter()
-                    .map(|tri| {
-                        [
-                            tri[0] + translation,
-                            tri[1] + translation,
-                            tri[2] + translation,
-                        ]
-                    })
-                    .collect();
-                let occupied_cells =
-                    occupied_cells_for_translation(tray, &best.oriented, translation);
-                stamp_cells(tray, &mut occupied, &occupied_cells);
-                let bbox = bbox_of_triangles(&triangles);
-                eprintln!(
-                    "  {:?} にパックしました。refinement ({:.3}, {:.3}, {:.3}), 回転 {}, コスト {:.3}",
-                    best.offset,
-                    refinement.x,
-                    refinement.y,
-                    refinement.z,
-                    best.rotation_index,
-                    best.cost
-                );
-                placed.push(PlacedMesh {
-                    name: best.oriented.name,
-                    triangles,
-                    offset: best.offset,
-                    translation,
-                    refinement,
-                    rotation_index: best.rotation_index,
-                    voxel_count: best.oriented.voxel_count,
-                    mesh_volume: mesh.signed_volume().abs(),
-                    bbox,
-                    occupied_cells,
-                });
-            }
+            Some(placed_mesh) => placed.push(placed_mesh),
             None => {
                 eprintln!("  パックできませんでした");
                 unpacked.push(mesh.name.clone());
             }
         }
     }
+
+    let post_report = if ray_disassembly && post_opt_passes > 0 {
+        Some(optimize_disassembly(
+            meshes,
+            tray,
+            rotations,
+            height_weight,
+            interlock_free,
+            refine,
+            refine_margin,
+            post_opt_passes,
+            &mut placed,
+        )?)
+    } else {
+        None
+    };
 
     let ray_report = if ray_disassembly {
         Some(ray_casting_disassembly(tray, &placed))
@@ -511,7 +503,325 @@ fn pack_meshes(
         placed,
         unpacked,
         ray_report,
+        post_report,
     })
+}
+
+type PlacementKey = (usize, usize, usize, usize);
+
+fn place_mesh(
+    mesh: &Mesh,
+    source_index: usize,
+    tray: Tray,
+    rotations: &[Rotation],
+    occupied: &mut [bool],
+    placed: &[PlacedMesh],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    forbidden: Option<&HashSet<PlacementKey>>,
+    log: bool,
+) -> Result<Option<PlacedMesh>> {
+    if log {
+        eprintln!("{} を配置中...", mesh.name);
+    }
+    let Some(best) = search_placement(
+        mesh,
+        tray,
+        rotations,
+        occupied,
+        height_weight,
+        interlock_free,
+        forbidden,
+    )?
+    else {
+        return Ok(None);
+    };
+
+    let discrete_translation = Vec3::new(
+        best.offset.0 as f32 * tray.voxel,
+        best.offset.1 as f32 * tray.voxel,
+        best.offset.2 as f32 * tray.voxel,
+    );
+    let translation = if refine {
+        refine_translation(
+            &best.oriented,
+            discrete_translation,
+            placed,
+            tray,
+            refine_margin,
+        )
+    } else {
+        discrete_translation
+    };
+    let refinement = translation - discrete_translation;
+    let triangles: Vec<[Vec3; 3]> = best
+        .oriented
+        .triangles
+        .iter()
+        .map(|tri| {
+            [
+                tri[0] + translation,
+                tri[1] + translation,
+                tri[2] + translation,
+            ]
+        })
+        .collect();
+    let occupied_cells = occupied_cells_for_translation(tray, &best.oriented, translation);
+    stamp_cells(tray, occupied, &occupied_cells);
+    let bbox = bbox_of_triangles(&triangles);
+    if log {
+        eprintln!(
+            "  {:?} にパックしました。refinement ({:.3}, {:.3}, {:.3}), 回転 {}, コスト {:.3}",
+            best.offset, refinement.x, refinement.y, refinement.z, best.rotation_index, best.cost
+        );
+    }
+    Ok(Some(PlacedMesh {
+        name: best.oriented.name,
+        source_index,
+        triangles,
+        offset: best.offset,
+        translation,
+        refinement,
+        rotation_index: best.rotation_index,
+        voxel_count: best.oriented.voxel_count,
+        mesh_volume: mesh.signed_volume().abs(),
+        bbox,
+        occupied_cells,
+    }))
+}
+
+fn optimize_disassembly(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    max_passes: usize,
+    placed: &mut Vec<PlacedMesh>,
+) -> Result<PostOptimizationReport> {
+    let mut passes = 0;
+    let mut attempted_groups = 0;
+    let mut accepted_reinsertions = 0;
+    let mut reinserted_objects = 0;
+    let mut report = ray_casting_disassembly(tray, placed);
+
+    while passes < max_passes && !report.remaining_groups.is_empty() {
+        passes += 1;
+        let current_score = disassembly_score(&report);
+        let groups = report.remaining_groups.clone();
+        let mut accepted = false;
+
+        for group in groups {
+            attempted_groups += 1;
+            let Some((candidate, candidate_report)) = best_reinsertion_candidate(
+                meshes,
+                tray,
+                rotations,
+                height_weight,
+                interlock_free,
+                refine,
+                refine_margin,
+                placed,
+                &group,
+                current_score,
+            )?
+            else {
+                continue;
+            };
+
+            reinserted_objects += candidate.len().saturating_sub(placed.len() - group.len());
+            *placed = candidate;
+            report = candidate_report;
+            accepted_reinsertions += 1;
+            accepted = true;
+            break;
+        }
+
+        if !accepted {
+            break;
+        }
+    }
+
+    Ok(PostOptimizationReport {
+        passes,
+        attempted_groups,
+        accepted_reinsertions,
+        reinserted_objects,
+        unresolved_groups: report.remaining_groups.len(),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn best_reinsertion_candidate(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    placed: &[PlacedMesh],
+    group: &[usize],
+    current_score: (usize, usize),
+) -> Result<Option<(Vec<PlacedMesh>, RayDisassemblyReport)>> {
+    let group_set = group.iter().copied().collect::<HashSet<_>>();
+    let kept = placed
+        .iter()
+        .enumerate()
+        .filter_map(|(id, object)| (!group_set.contains(&id)).then_some(object.clone()))
+        .collect::<Vec<_>>();
+    let source_indices = group
+        .iter()
+        .map(|&object_id| placed[object_id].source_index)
+        .collect::<Vec<_>>();
+    let original_keys = group
+        .iter()
+        .map(|&object_id| {
+            let object = &placed[object_id];
+            (
+                object.source_index,
+                (
+                    object.rotation_index,
+                    object.offset.0,
+                    object.offset.1,
+                    object.offset.2,
+                ),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let mut best: Option<(Vec<PlacedMesh>, RayDisassemblyReport, (usize, usize))> = None;
+    for order in reinsertion_orders(&source_indices, meshes) {
+        for height_multiplier in [1.0, 1.5, 0.5, 2.5] {
+            for avoid_original in [true, false] {
+                let forbidden = if avoid_original {
+                    original_keys.clone()
+                } else {
+                    Vec::new()
+                };
+                let Some(candidate) = try_reinsert_order(
+                    meshes,
+                    tray,
+                    rotations,
+                    &kept,
+                    &order,
+                    &forbidden,
+                    height_weight * height_multiplier,
+                    interlock_free,
+                    refine,
+                    refine_margin,
+                )?
+                else {
+                    continue;
+                };
+                let candidate_report = ray_casting_disassembly(tray, &candidate);
+                let score = disassembly_score(&candidate_report);
+                if score < current_score
+                    && best
+                        .as_ref()
+                        .map(|(_, _, best_score)| score < *best_score)
+                        .unwrap_or(true)
+                {
+                    best = Some((candidate, candidate_report, score));
+                }
+            }
+        }
+    }
+
+    Ok(best.map(|(candidate, report, _)| (candidate, report)))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn try_reinsert_order(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    kept: &[PlacedMesh],
+    order: &[usize],
+    forbidden_keys: &[(usize, PlacementKey)],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+) -> Result<Option<Vec<PlacedMesh>>> {
+    let mut candidate = kept.to_vec();
+    let mut occupied = occupied_from_placed(tray, &candidate);
+
+    for &source_index in order {
+        let forbidden = forbidden_keys
+            .iter()
+            .filter_map(|&(key_source, key)| (key_source == source_index).then_some(key))
+            .collect::<HashSet<_>>();
+        let forbidden = (!forbidden.is_empty()).then_some(forbidden);
+        let Some(placed_mesh) = place_mesh(
+            &meshes[source_index],
+            source_index,
+            tray,
+            rotations,
+            &mut occupied,
+            &candidate,
+            height_weight,
+            interlock_free,
+            refine,
+            refine_margin,
+            forbidden.as_ref(),
+            false,
+        )?
+        else {
+            return Ok(None);
+        };
+        candidate.push(placed_mesh);
+    }
+
+    Ok(Some(candidate))
+}
+
+fn reinsertion_orders(source_indices: &[usize], meshes: &[Mesh]) -> Vec<Vec<usize>> {
+    let mut orders = Vec::new();
+    push_unique_order(&mut orders, source_indices.to_vec());
+
+    let mut reversed = source_indices.to_vec();
+    reversed.reverse();
+    push_unique_order(&mut orders, reversed);
+
+    let mut small_first = source_indices.to_vec();
+    small_first.sort_by(|&a, &b| {
+        meshes[a]
+            .bbox_volume()
+            .partial_cmp(&meshes[b].bbox_volume())
+            .unwrap_or(Ordering::Equal)
+    });
+    push_unique_order(&mut orders, small_first.clone());
+
+    small_first.reverse();
+    push_unique_order(&mut orders, small_first);
+
+    orders
+}
+
+fn push_unique_order(orders: &mut Vec<Vec<usize>>, order: Vec<usize>) {
+    if !orders.iter().any(|existing| existing == &order) {
+        orders.push(order);
+    }
+}
+
+fn disassembly_score(report: &RayDisassemblyReport) -> (usize, usize) {
+    (
+        report.remaining_groups.iter().map(Vec::len).sum::<usize>(),
+        report.remaining_groups.len(),
+    )
+}
+
+fn occupied_from_placed(tray: Tray, placed: &[PlacedMesh]) -> Vec<bool> {
+    let mut occupied = vec![false; tray.len()];
+    for object in placed {
+        stamp_cells(tray, &mut occupied, &object.occupied_cells);
+    }
+    occupied
 }
 
 fn search_placement(
@@ -521,6 +831,7 @@ fn search_placement(
     occupied: &[bool],
     height_weight: f32,
     interlock_free: bool,
+    forbidden: Option<&HashSet<PlacementKey>>,
 ) -> Result<Option<Placement>> {
     let distance = manhattan_distance_field(tray, occupied);
     let existing_fft = fft_of_bool_grid(tray, occupied);
@@ -557,6 +868,12 @@ fn search_placement(
             let height_cost = height_weight * z_norm.powi(3);
             for y in 0..=max_y {
                 for x in 0..=max_x {
+                    if forbidden
+                        .map(|keys| keys.contains(&(rotation_index, x, y, z)))
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
                     let grid_index = idx(x, y, z, tray.nx, tray.ny);
                     if collision[grid_index] > 0.5 {
                         continue;
@@ -860,12 +1177,6 @@ fn ray_casting_disassembly(tray: Tray, placed: &[PlacedMesh]) -> RayDisassemblyR
         }
         strongly_connected_components(&remaining_ids, &union_edges)
             .into_iter()
-            .map(|group| {
-                group
-                    .into_iter()
-                    .map(|object_id| placed[object_id].name.clone())
-                    .collect()
-            })
             .collect()
     };
 
@@ -1700,6 +2011,16 @@ fn print_summary(result: &PackResult, tray: Tray, out: &Path) {
             result.unpacked.join(", ")
         );
     }
+    if let Some(report) = &result.post_report {
+        println!(
+            "後処理最適化: {}パス、{}グループ試行、{}回採用、{}個を再挿入、未解決グループ{}個",
+            report.passes,
+            report.attempted_groups,
+            report.accepted_reinsertions,
+            report.reinserted_objects,
+            report.unresolved_groups
+        );
+    }
     if let Some(report) = &result.ray_report {
         if report.remaining_groups.is_empty() {
             println!(
@@ -1713,7 +2034,11 @@ fn print_summary(result: &PackResult, tray: Tray, out: &Path) {
                 report.remaining_groups.len()
             );
             for group in &report.remaining_groups {
-                println!("  残ったグループ: {}", group.join(", "));
+                let names = group
+                    .iter()
+                    .map(|&object_id| result.placed[object_id].name.as_str())
+                    .collect::<Vec<_>>();
+                println!("  残ったグループ: {}", names.join(", "));
             }
         }
     }
@@ -1880,6 +2205,54 @@ mod tests {
     }
 
     #[test]
+    fn post_optimizer_reinserts_interlocked_group_when_it_improves_disassembly() {
+        let tray = Tray::new(5.0, 5.0, 5.0, 1.0).unwrap();
+        let meshes = vec![
+            Mesh {
+                name: "a".to_string(),
+                triangles: cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.5, 0.5, 0.5)),
+            },
+            Mesh {
+                name: "b".to_string(),
+                triangles: cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.5, 0.5, 0.5)),
+            },
+        ];
+        let mut placed = vec![
+            test_placed_with_source(
+                "a",
+                0,
+                vec![
+                    (0, 1, 1),
+                    (2, 1, 1),
+                    (1, 0, 1),
+                    (1, 2, 1),
+                    (1, 1, 0),
+                    (1, 1, 2),
+                ],
+            ),
+            test_placed_with_source("b", 1, vec![(1, 1, 1)]),
+        ];
+        let before = ray_casting_disassembly(tray, &placed);
+        assert!(!before.remaining_groups.is_empty());
+
+        let post = optimize_disassembly(
+            &meshes,
+            tray,
+            &rotation_set(1),
+            1.0,
+            true,
+            false,
+            0.0,
+            2,
+            &mut placed,
+        )
+        .unwrap();
+        let after = ray_casting_disassembly(tray, &placed);
+        assert!(after.remaining_groups.is_empty());
+        assert_eq!(post.accepted_reinsertions, 1);
+    }
+
+    #[test]
     fn refinement_moves_toward_tray_floor() {
         let tray = Tray::new(5.0, 5.0, 5.0, 1.0).unwrap();
         let mesh = Mesh {
@@ -1894,8 +2267,17 @@ mod tests {
     }
 
     fn test_placed(name: &str, occupied_cells: Vec<(usize, usize, usize)>) -> PlacedMesh {
+        test_placed_with_source(name, 0, occupied_cells)
+    }
+
+    fn test_placed_with_source(
+        name: &str,
+        source_index: usize,
+        occupied_cells: Vec<(usize, usize, usize)>,
+    ) -> PlacedMesh {
         PlacedMesh {
             name: name.to_string(),
+            source_index,
             triangles: Vec::new(),
             offset: (0, 0, 0),
             translation: Vec3::default(),
