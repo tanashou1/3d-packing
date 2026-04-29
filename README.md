@@ -1,78 +1,63 @@
 # 3d-packing
 
-Rust CLI for dense 3D STL packing based on the core ideas from **Dense,
-Interlocking-Free and Scalable Spectral Packing of Generic 3D Objects**.
+「汎用3D物体の高密度・非噛み込み・スケーラブルなスペクトルパッキング」論文の主要アイデアをもとにした、Rust製の3D STLパッキングCLIです。
 
-Current packed outputs can be inspected in the GitHub Pages viewer:
+現在のパック結果は、GitHub Pagesのビューアから確認できます。
 
 https://tanashou1.github.io/3d-packing/
 
-This is a CPU reference implementation of the paper's main placement
-pipeline:
+この実装は、論文の配置パイプラインをCPU向けの参照実装としてまとめたものです。
 
-1. Voxelize each STL mesh.
-2. Compute collision counts for every translation with 3D FFT correlation.
-3. Compute a proximity score from a Manhattan distance field, also through FFT
-   correlation.
-4. Add the paper's cubic height penalty term.
-5. Greedily pack objects from largest bounding box to smallest.
-6. Optionally flood-fill collision-free offsets and only accept placements that
-   are translationally reachable from the offset-domain boundary, which avoids
-   simple interlocking placements.
-7. Refine each accepted placement with sub-voxel binary searches along the
-   negative x/y/z axes, using mesh triangle AABB checks to keep a clearance
-   margin.
-8. Analyze the final tray with ray-casting directional blocking graphs and
-   strongly connected components to report objects removable by straight-line
-   disassembly.
+1. 各STLメッシュをボクセル化する。
+2. 3D FFT相関で、すべての平行移動候補に対する衝突数を計算する。
+3. マンハッタン距離場から近接スコアを作り、これもFFT相関で計算する。
+4. 論文の3次高さペナルティを加える。
+5. バウンディングボックスが大きい物体から順に貪欲に配置する。
+6. 必要に応じて、衝突しないオフセット空間をFlood-fillし、境界から平行移動で到達可能な配置だけを採用する。
+7. 採用した配置を、負のx/y/z方向への二分探索でサブボクセル単位に詰める。
+8. 最終トレイをray-castingのDirectional Blocking Graphと強連結成分で解析し、直線移動で取り出せる物体を報告する。
 
-The implementation intentionally leaves out GPU acceleration and the full
-remove-and-reinsert post-disassembly optimizer from the paper.
+GPU高速化と、論文の完全な「取り外し・再挿入」型の後処理最適化は未実装です。
 
-## Build and test
+## ビルドとテスト
 
 ```bash
 cargo test
 cargo build --release
 ```
 
-## Generate sample STL files
+## 手続き生成サンプルSTLの作成
 
-The repository includes a small generated sample set under `samples/stl`.
-Regenerate it with:
+`samples/stl` には、小さな手続き生成サンプルが入っています。再生成するには次を実行します。
 
 ```bash
 cargo run -- sample --output samples/stl
 ```
 
-## Generate Thingi10K sample cases
+## Thingi10Kサンプルケースの作成
 
-`scripts/fetch_thingi10k_cases.py` downloads selected models through the
-official Thingi10K API, normalizes each STL to a small test scale, and writes
-license/source attribution next to each case.
+`scripts/fetch_thingi10k_cases.py` は、Thingi10K公式APIから選択済みモデルのメタデータを取得し、APIが返すSTLリンクからメッシュをダウンロードします。各STLは検証しやすい小さなスケールへ正規化され、ケースごとにライセンス・出典情報も保存されます。
 
 ```bash
 python3 scripts/fetch_thingi10k_cases.py --output samples/thingi10k
 ```
 
-Generated cases:
+生成されるケース:
 
-| Case | Models | Purpose |
+| ケース | モデル数 | 目的 |
 | --- | ---: | --- |
-| `micro` | 6 | Very small low-face-count smoke test |
-| `mechanical` | 8 | Mechanical/cup/speaker-like solids |
-| `mixed` | 8 | Mixed boxes, aircraft parts, chassis, and flexible mesh |
-| `stacked_small` | 24 | Many small low-face-count solids for stacked packing |
-| `stacked_mixed` | 36 | Larger mixed set designed to force multi-layer placement |
+| `micro` | 6 | 低面数の小さなスモークテスト |
+| `mechanical` | 8 | 機械部品、カップ、スピーカー形状などのソリッド |
+| `mixed` | 8 | 箱、航空機部品、シャーシ、柔軟メッシュの混合 |
+| `stacked_small` | 24 | 積み重ね配置を確認するための小型低面数ソリッド群 |
+| `stacked_mixed` | 36 | 多層配置を強制しやすい、やや大きな混合セット |
 
-Each case directory contains `attribution.json`. The top-level
-`samples/thingi10k/manifest.json` aggregates the same metadata, including
-file IDs, Thingiverse IDs, authors, licenses, original face counts, and source
-URLs, and normalized bounding boxes.
+各ケースディレクトリには `attribution.json` が含まれます。トップレベルの
+`samples/thingi10k/manifest.json` には、file ID、Thingiverse ID、作者、ライセンス、元の面数、出典URL、正規化後のバウンディングボックスがまとめられています。
 
-## Pack STL files
+## STLファイルのパック
 
-Pack all STL files in the sample directory into one combined STL:
+サンプルディレクトリ内のSTLをまとめて1つのSTLへパックする例です。
 
 ```bash
 cargo run -- pack samples/stl \
@@ -82,31 +67,26 @@ cargo run -- pack samples/stl \
   --rotations 24
 ```
 
-Useful options:
+主なオプション:
 
-| Option | Default | Meaning |
+| オプション | 既定値 | 意味 |
 | --- | ---: | --- |
-| `--width`, `--depth`, `--height` | `80`, `80`, `60` | Rectangular tray dimensions in model units |
-| `--voxel` | `2` | Voxel edge length; smaller is more accurate but slower |
-| `--rotations` | `24` | Number of right-handed 90-degree orientations to sample |
-| `--height-weight` | `10` | Coefficient for `p * q_z^3` height penalization |
-| `--refine-margin` | `0.05` | Triangle AABB clearance used by sub-voxel refinement |
-| `--no-refine` | off | Disable continuous sub-voxel refinement |
-| `--no-interlock` | off | Disable flood-fill reachability filtering |
-| `--no-ray-disassembly` | off | Disable ray-casting directional blocking analysis |
+| `--width`, `--depth`, `--height` | `80`, `80`, `60` | 直方体トレイの寸法 |
+| `--voxel` | `2` | ボクセルの辺長。小さいほど高精度だが遅くなる |
+| `--rotations` | `24` | 試す90度刻みの右手系姿勢数 |
+| `--height-weight` | `10` | `p * q_z^3` 高さペナルティの係数 |
+| `--refine-margin` | `0.05` | サブボクセルrefinement中の三角形AABBクリアランス |
+| `--no-refine` | off | 連続サブボクセルrefinementを無効化する |
+| `--no-interlock` | off | Flood-fill到達可能性フィルタを無効化する |
+| `--no-ray-disassembly` | off | ray-castingによる分解可能性解析を無効化する |
 
-Inputs can be individual STL files or directories containing STL files. The
-output is one ASCII STL containing all successfully packed objects.
+入力には個別のSTLファイル、またはSTLファイルを含むディレクトリを指定できます。出力は、配置に成功した物体を1つにまとめたASCII STLです。
 
-## Thingi10K bbox-tight validation
+## Thingi10Kのbboxタイト検証
 
-The generated Thingi10K cases are packed with a tray computed from object
-bounding boxes. The validator deliberately chooses a tray footprint smaller
-than the sum of all per-object bbox x/y footprints, so a simple flat placement
-cannot satisfy the case. A machine readable copy of these results is stored in
-`samples/thingi10k/validation.json`.
+Thingi10Kケースは、各物体のバウンディングボックスから算出したトレイへパックしています。検証スクリプトは、各物体bboxのx/yフットプリント合計よりも小さい底面を意図的に選ぶため、単純な平置きでは満たせない条件になります。機械可読な結果は `samples/thingi10k/validation.json` に保存されます。
 
-| Case | Bbox-tight tray | Voxel | Packed | Voxel density | Tray footprint vs sum bbox footprint |
+| ケース | bboxタイトトレイ | ボクセル | パック数 | ボクセル密度 | トレイ底面 / bbox底面合計 |
 | --- | --- | ---: | ---: | ---: | ---: |
 | `micro` | `15 x 15 x 15` | `2.5` | 6/6 | 42.59% | 225.00 / 454.94 |
 | `mechanical` | `28 x 28 x 21` | `3.5` | 8/8 | 42.19% | 784.00 / 1206.94 |
@@ -114,7 +94,7 @@ cannot satisfy the case. A machine readable copy of these results is stored in
 | `stacked_small` | `18 x 18 x 20` | `2.0` | 24/24 | 63.95% | 324.00 / 928.69 |
 | `stacked_mixed` | `25 x 25 x 22.5` | `2.5` | 36/36 | 62.56% | 625.00 / 1790.90 |
 
-Regenerate and validate the bbox-tight cases:
+bboxタイトケースを再生成・再検証するには、次を実行します。
 
 ```bash
 cargo build --release

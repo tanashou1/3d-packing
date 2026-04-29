@@ -189,13 +189,13 @@ struct Tray {
 impl Tray {
     fn new(width: f32, depth: f32, height: f32, voxel: f32) -> Result<Self> {
         if width <= 0.0 || depth <= 0.0 || height <= 0.0 || voxel <= 0.0 {
-            bail!("tray dimensions and voxel size must be positive");
+            bail!("トレイ寸法とボクセルサイズは正の値にしてください");
         }
         let nx = (width / voxel).ceil() as usize;
         let ny = (depth / voxel).ceil() as usize;
         let nz = (height / voxel).ceil() as usize;
         if nx == 0 || ny == 0 || nz == 0 {
-            bail!("voxel grid is empty");
+            bail!("ボクセルグリッドが空です");
         }
         Ok(Self {
             width,
@@ -240,7 +240,7 @@ fn main() -> Result<()> {
             let tray = Tray::new(width, depth, height, voxel)?;
             let input_paths = collect_stl_inputs(&inputs)?;
             if input_paths.is_empty() {
-                bail!("no STL files found");
+                bail!("STLファイルが見つかりません");
             }
             let mut meshes = input_paths
                 .iter()
@@ -263,12 +263,12 @@ fn main() -> Result<()> {
                 !no_ray_disassembly,
             )?;
             write_combined_stl(&out, &result.placed)
-                .with_context(|| format!("failed to write {}", out.display()))?;
+                .with_context(|| format!("{} の書き込みに失敗しました", out.display()))?;
             print_summary(&result, tray, &out);
         }
         Command::Sample { output } => {
             write_sample_set(&output)?;
-            println!("wrote sample STL files to {}", output.display());
+            println!("サンプルSTLを {} に書き出しました", output.display());
         }
     }
     Ok(())
@@ -283,7 +283,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Command> {
         "pack" => parse_pack_args(args.collect()),
         "sample" => parse_sample_args(args.collect()),
         "-h" | "--help" | "help" => bail!("{}", usage()),
-        _ => bail!("unknown command `{command}`\n\n{}", usage()),
+        _ => bail!("不明なコマンドです: `{command}`\n\n{}", usage()),
     }
 }
 
@@ -339,14 +339,14 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
             }
             "--no-ray-disassembly" => no_ray_disassembly = true,
             "-h" | "--help" => bail!("{}", usage()),
-            arg if arg.starts_with('-') => bail!("unknown pack option `{arg}`"),
+            arg if arg.starts_with('-') => bail!("不明なpackオプションです: `{arg}`"),
             arg => inputs.push(PathBuf::from(arg)),
         }
         i += 1;
     }
     if inputs.is_empty() {
         bail!(
-            "pack requires at least one STL file or directory\n\n{}",
+            "packにはSTLファイルまたはディレクトリを1つ以上指定してください\n\n{}",
             usage()
         );
     }
@@ -376,7 +376,7 @@ fn parse_sample_args(args: Vec<String>) -> Result<Command> {
                 output = PathBuf::from(required_arg(&args, i, "--output")?);
             }
             "-h" | "--help" => bail!("{}", usage()),
-            arg => bail!("unknown sample option `{arg}`"),
+            arg => bail!("不明なsampleオプションです: `{arg}`"),
         }
         i += 1;
     }
@@ -386,7 +386,7 @@ fn parse_sample_args(args: Vec<String>) -> Result<Command> {
 fn required_arg(args: &[String], index: usize, option: &str) -> Result<String> {
     args.get(index)
         .cloned()
-        .ok_or_else(|| anyhow!("{option} requires a value"))
+        .ok_or_else(|| anyhow!("{option} には値が必要です"))
 }
 
 fn parse_value<T: std::str::FromStr>(args: &[String], index: usize, option: &str) -> Result<T>
@@ -395,11 +395,11 @@ where
 {
     required_arg(args, index, option)?
         .parse::<T>()
-        .map_err(|err| anyhow!("invalid value for {option}: {err}"))
+        .map_err(|err| anyhow!("{option} の値が不正です: {err}"))
 }
 
 fn usage() -> &'static str {
-    "Usage:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\nPack options:\n  -o, --out FILE              Combined output STL (default: packed.stl)\n      --width N               Tray width (default: 80)\n      --depth N               Tray depth (default: 80)\n      --height N              Tray height (default: 60)\n      --voxel N               Voxel size (default: 2)\n      --rotations N           90-degree rotations to sample, max 24 (default: 24)\n      --height-weight N       Height penalty coefficient (default: 10)\n      --refine-margin N       Triangle AABB clearance during refinement (default: 0.05)\n      --no-refine             Disable continuous sub-voxel refinement\n      --no-interlock          Disable flood-fill reachability filtering\n      --no-ray-disassembly    Disable ray-casting disassembly analysis"
+    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す90度姿勢数。最大24（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
 }
 
 struct PackResult {
@@ -429,7 +429,7 @@ fn pack_meshes(
     let mut unpacked = Vec::new();
 
     for mesh in meshes {
-        eprintln!("placing {} ...", mesh.name);
+        eprintln!("{} を配置中...", mesh.name);
         match search_placement(
             mesh,
             tray,
@@ -473,7 +473,7 @@ fn pack_meshes(
                 stamp_cells(tray, &mut occupied, &occupied_cells);
                 let bbox = bbox_of_triangles(&triangles);
                 eprintln!(
-                    "  packed at {:?}, refinement ({:.3}, {:.3}, {:.3}), rotation {}, cost {:.3}",
+                    "  {:?} にパックしました。refinement ({:.3}, {:.3}, {:.3}), 回転 {}, コスト {:.3}",
                     best.offset,
                     refinement.x,
                     refinement.y,
@@ -495,7 +495,7 @@ fn pack_meshes(
                 });
             }
             None => {
-                eprintln!("  could not pack");
+                eprintln!("  パックできませんでした");
                 unpacked.push(mesh.name.clone());
             }
         }
@@ -1302,9 +1302,9 @@ fn collect_stl_inputs(inputs: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     for input in inputs {
         if input.is_dir() {
-            for entry in fs::read_dir(input)
-                .with_context(|| format!("failed to read directory {}", input.display()))?
-            {
+            for entry in fs::read_dir(input).with_context(|| {
+                format!("ディレクトリ {} の読み込みに失敗しました", input.display())
+            })? {
                 let path = entry?.path();
                 if path
                     .extension()
@@ -1326,7 +1326,7 @@ fn collect_stl_inputs(inputs: &[PathBuf]) -> Result<Vec<PathBuf>> {
 fn load_stl(path: &Path) -> Result<Mesh> {
     let mut bytes = Vec::new();
     File::open(path)
-        .with_context(|| format!("failed to open {}", path.display()))?
+        .with_context(|| format!("{} を開けませんでした", path.display()))?
         .read_to_end(&mut bytes)?;
     let triangles = if is_binary_stl(&bytes) {
         parse_binary_stl(&bytes)?
@@ -1334,7 +1334,7 @@ fn load_stl(path: &Path) -> Result<Mesh> {
         parse_ascii_stl(&String::from_utf8_lossy(&bytes))?
     };
     if triangles.is_empty() {
-        bail!("{} contains no triangles", path.display());
+        bail!("{} に三角形が含まれていません", path.display());
     }
     Ok(Mesh {
         name: path
@@ -1359,7 +1359,7 @@ fn parse_binary_stl(bytes: &[u8]) -> Result<Vec<[Vec3; 3]>> {
     let mut triangles = Vec::with_capacity(count);
     let mut offset = 84;
     for _ in 0..count {
-        offset += 12; // normal
+        offset += 12; // 法線
         let mut tri = [Vec3::default(); 3];
         for vertex in &mut tri {
             let x = read_f32_le(bytes, offset)?;
@@ -1368,7 +1368,7 @@ fn parse_binary_stl(bytes: &[u8]) -> Result<Vec<[Vec3; 3]>> {
             *vertex = Vec3::new(x, y, z);
             offset += 12;
         }
-        offset += 2; // attribute byte count
+        offset += 2; // 属性バイト数
         triangles.push(tri);
     }
     Ok(triangles)
@@ -1377,7 +1377,7 @@ fn parse_binary_stl(bytes: &[u8]) -> Result<Vec<[Vec3; 3]>> {
 fn read_f32_le(bytes: &[u8], offset: usize) -> Result<f32> {
     let slice = bytes
         .get(offset..offset + 4)
-        .ok_or_else(|| anyhow!("truncated binary STL"))?;
+        .ok_or_else(|| anyhow!("binary STLが途中で切れています"))?;
     Ok(f32::from_le_bytes(slice.try_into().unwrap()))
 }
 
@@ -1391,13 +1391,13 @@ fn parse_ascii_stl(text: &str) -> Result<Vec<[Vec3; 3]>> {
                 .map(str::parse::<f32>)
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             if values.len() != 3 {
-                bail!("invalid ASCII STL vertex line: {line}");
+                bail!("ASCII STLの頂点行が不正です: {line}");
             }
             vertices.push(Vec3::new(values[0], values[1], values[2]));
         }
     }
     if vertices.len() % 3 != 0 {
-        bail!("ASCII STL has incomplete triangles");
+        bail!("ASCII STLの三角形が不完全です");
     }
     Ok(vertices
         .chunks_exact(3)
@@ -1630,18 +1630,18 @@ fn print_summary(result: &PackResult, tray: Tray, out: &Path) {
     let mesh_volume = result.placed.iter().map(|p| p.mesh_volume).sum::<f32>();
     let tray_volume = tray.width * tray.depth * tray.height;
     println!(
-        "packed {} objects into {}",
+        "{}個の物体を {} にパックしました",
         result.placed.len(),
         out.display()
     );
     println!(
-        "voxel density: {:.2}% | mesh density: {:.2}%",
+        "ボクセル密度: {:.2}% | メッシュ密度: {:.2}%",
         occupied_volume / tray_volume * 100.0,
         mesh_volume / tray_volume * 100.0
     );
     if !result.unpacked.is_empty() {
         println!(
-            "unpacked {} objects: {}",
+            "未パックの物体 {}個: {}",
             result.unpacked.len(),
             result.unpacked.join(", ")
         );
@@ -1649,23 +1649,23 @@ fn print_summary(result: &PackResult, tray: Tray, out: &Path) {
     if let Some(report) = &result.ray_report {
         if report.remaining_groups.is_empty() {
             println!(
-                "ray disassembly: all {} packed objects removable by directional blocking analysis in {} passes",
+                "ray分解判定: パック済み{}個すべてがDirectional Blocking解析で取り出し可能（{}パス）",
                 report.removed_by_rays, report.passes
             );
         } else {
             println!(
-                "ray disassembly: {} objects removable by rays; {} potential interlocked group(s) remain",
+                "ray分解判定: {}個はrayで取り出し可能。噛み込みの可能性があるグループが{}個残っています",
                 report.removed_by_rays,
                 report.remaining_groups.len()
             );
             for group in &report.remaining_groups {
-                println!("  remaining group: {}", group.join(", "));
+                println!("  残ったグループ: {}", group.join(", "));
             }
         }
     }
     for placed in &result.placed {
         println!(
-            "  {} offset={:?} translation=({:.3}, {:.3}, {:.3}) refinement=({:.3}, {:.3}, {:.3}) rotation={}",
+            "  {} オフセット={:?} 平行移動=({:.3}, {:.3}, {:.3}) refinement=({:.3}, {:.3}, {:.3}) 回転={}",
             placed.name,
             placed.offset,
             placed.translation.x,

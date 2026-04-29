@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Download and normalize small Thingi10K packing cases.
+"""Thingi10Kの小さなパッキングケースをダウンロードして正規化する。
 
-The script fetches metadata from the official Thingi10K API and STL files from
-the official links returned by that API. Generated meshes are normalized for
-packing experiments and written as ASCII STL files.
+公式Thingi10K APIからメタデータを取得し、そのAPIが返す公式リンクからSTLを取得する。
+生成したメッシュはパッキング実験向けに正規化し、ASCII STLとして保存する。
 """
 
 from __future__ import annotations
@@ -112,7 +111,7 @@ def main() -> None:
         "--case",
         action="append",
         choices=sorted(CASES),
-        help="Case to generate. May be repeated. Defaults to all cases.",
+        help="生成するケース。複数回指定できる。未指定なら全ケースを生成する。",
     )
     args = parser.parse_args()
 
@@ -151,7 +150,7 @@ def main() -> None:
                     "local_file": out_path.name,
                 }
             )
-            print(f"{case_name}: wrote {out_path}")
+            print(f"{case_name}: {out_path} を書き出しました")
         (case_dir / "attribution.json").write_text(
             json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
@@ -208,7 +207,7 @@ def parse_ascii_stl(text: str) -> list[tuple[Vec3, Vec3, Vec3]]:
         if len(parts) == 4 and parts[0] == "vertex":
             vertices.append((float(parts[1]), float(parts[2]), float(parts[3])))
     if len(vertices) % 3:
-        raise ValueError("ASCII STL has incomplete triangles")
+        raise ValueError("ASCII STLの三角形が不完全です")
     return [
         (vertices[i], vertices[i + 1], vertices[i + 2])
         for i in range(0, len(vertices), 3)
@@ -228,7 +227,7 @@ def normalize_triangles(
     extent = [maxs[i] - mins[i] for i in range(3)]
     max_dim = max(extent)
     if max_dim <= 0:
-        raise ValueError("mesh has zero-size bounding box")
+        raise ValueError("メッシュのバウンディングボックスがゼロサイズです")
     scale = target_max_dim / max_dim
     normalized = []
     for tri in triangles:

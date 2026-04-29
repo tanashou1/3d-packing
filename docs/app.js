@@ -15,7 +15,7 @@ let dragging = false;
 let lastMouse = [0, 0];
 
 if (!gl) {
-  statusEl.textContent = "WebGL is not available in this browser.";
+  statusEl.textContent = "このブラウザではWebGLを利用できません。";
 } else {
   init();
 }
@@ -43,37 +43,37 @@ async function init() {
 
 async function loadResult(result) {
   select.value = result.id;
-  statusEl.textContent = `Loading ${result.title}...`;
+  statusEl.textContent = `${result.title} を読み込み中...`;
   stats.innerHTML = [
-    ["Packed objects", result.packedObjects],
-    result.inputObjects ? ["Input objects", result.inputObjects] : null,
-    ["Tray", result.tray],
-    ["Voxel", result.voxel],
-    ["Voxel density", `${result.voxelDensity}%`],
-    ["Mesh density", `${result.meshDensity}%`],
+    ["パック済み物体数", result.packedObjects],
+    result.inputObjects ? ["入力物体数", result.inputObjects] : null,
+    ["トレイ", result.tray],
+    ["ボクセル", result.voxel],
+    ["ボクセル密度", `${result.voxelDensity}%`],
+    ["メッシュ密度", `${result.meshDensity}%`],
     result.requiresStackingByBbox !== undefined
-      ? ["BBox stacking required", result.requiresStackingByBbox ? "yes" : "no"]
+      ? ["bbox基準の積み重ね必須", result.requiresStackingByBbox ? "はい" : "いいえ"]
       : null,
     result.sumBboxFootprint !== undefined
-      ? ["Sum bbox footprint", result.sumBboxFootprint]
+      ? ["bbox底面合計", result.sumBboxFootprint]
       : null,
-    result.trayFootprint !== undefined ? ["Tray footprint", result.trayFootprint] : null,
-    result.sumBboxVolume !== undefined ? ["Sum bbox volume", result.sumBboxVolume] : null,
-    result.trayVolume !== undefined ? ["Tray volume", result.trayVolume] : null,
-    ["Ray disassembly", result.rayDisassembly],
-    ["Source", result.source],
+    result.trayFootprint !== undefined ? ["トレイ底面", result.trayFootprint] : null,
+    result.sumBboxVolume !== undefined ? ["bbox体積合計", result.sumBboxVolume] : null,
+    result.trayVolume !== undefined ? ["トレイ体積", result.trayVolume] : null,
+    ["ray分解判定", result.rayDisassembly],
+    ["出典", result.source],
   ]
     .filter(Boolean)
     .map(([key, value]) => `<div class="stat"><span>${key}</span><strong>${value}</strong></div>`)
     .join("");
 
   attributionEl.textContent = result.attribution
-    ? "Loading attribution..."
+    ? "帰属表示を読み込み中..."
     : result.source;
 
   const stlText = await fetch(result.stl).then((r) => {
     if (!r.ok) {
-      throw new Error(`Failed to load ${result.stl}: ${r.status}`);
+      throw new Error(`${result.stl} の読み込みに失敗しました: ${r.status}`);
     }
     return r.text();
   });
@@ -84,7 +84,7 @@ async function loadResult(result) {
     const attribution = await fetch(result.attribution).then((r) => r.json());
     attributionEl.textContent = JSON.stringify(attribution, null, 2);
   }
-  statusEl.textContent = `${result.title}: ${mesh.triangles} triangles`;
+  statusEl.textContent = `${result.title}: ${mesh.triangles}三角形`;
 }
 
 function parseAsciiStl(text) {
@@ -113,7 +113,7 @@ function parseAsciiStl(text) {
   }
 
   if (vertices.length === 0) {
-    throw new Error("No vertices found in STL.");
+    throw new Error("STL内に頂点が見つかりません。");
   }
 
   const center = [

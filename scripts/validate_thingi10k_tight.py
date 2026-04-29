@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Pack Thingi10K cases into bbox-derived tight trays.
+"""Thingi10Kケースをbbox由来のタイトなトレイへパックする。
 
-For each case, this script computes a tray from object bounding boxes:
+各ケースについて、物体のバウンディングボックスからトレイを計算する。
 
-* lower-bound volume = sum of per-object bbox volumes
-* flat footprint = sum of per-object bbox x/y footprints
-* tray footprint is deliberately a fraction of the flat footprint
-* tray height is chosen from the lower-bound volume and increased only when
-  needed for all objects to pack
+* 体積下限 = 各物体bbox体積の合計
+* 平置き底面 = 各物体bboxのx/yフットプリント合計
+* トレイ底面は、平置き底面より意図的に小さくする
+* トレイ高さは体積下限から選び、全物体が入るまで必要最小限だけ増やす
 
-The result is a reproducible validation JSON plus packed STL outputs.
+結果として、再現可能な検証JSONとパック済みSTLを出力する。
 """
 
 from __future__ import annotations
@@ -54,7 +53,7 @@ def main() -> None:
         config = DEFAULT_CASES[case_name]
         case_dir = args.samples / case_name
         if not case_dir.is_dir():
-            raise FileNotFoundError(f"missing case directory: {case_dir}")
+            raise FileNotFoundError(f"ケースディレクトリが見つかりません: {case_dir}")
         stl_paths = sorted(case_dir.glob("*.stl"))
         dims = [bbox_dimensions(path) for path in stl_paths]
         result = validate_case(
@@ -71,9 +70,9 @@ def main() -> None:
         )
         results[case_name] = result
         print(
-            f"{case_name}: packed {result['packed_objects']}/{result['input_objects']} "
-            f"in {result['tray']} with footprint {result['tray_footprint_area']:.2f} "
-            f"< flat {result['sum_bbox_xy_footprint']:.2f}"
+            f"{case_name}: {result['packed_objects']}/{result['input_objects']}個を "
+            f"{result['tray']} にパックしました。底面 {result['tray_footprint_area']:.2f} "
+            f"< 平置き {result['sum_bbox_xy_footprint']:.2f}"
         )
 
     validation_path = args.samples / "validation.json"
@@ -164,7 +163,7 @@ def validate_case(
                     "attempts": attempts,
                 }
 
-    raise RuntimeError(f"could not pack all objects in {case_name}; attempts={attempts}")
+    raise RuntimeError(f"{case_name} の全物体をパックできませんでした。試行={attempts}")
 
 
 def compute_tight_tray(
@@ -223,8 +222,14 @@ def bbox_dimensions(path: Path) -> tuple[float, float, float]:
 
 def parse_packer_output(output: str) -> dict:
     packed = re.search(r"packed (\d+) objects", output)
+    if not packed:
+        packed = re.search(r"(\d+)個の物体を .+ にパックしました", output)
     density = re.search(r"voxel density: ([0-9.]+)% \| mesh density: ([0-9.]+)%", output)
+    if not density:
+        density = re.search(r"ボクセル密度: ([0-9.]+)% \| メッシュ密度: ([0-9.]+)%", output)
     ray = re.search(r"ray disassembly: (.*)", output)
+    if not ray:
+        ray = re.search(r"ray分解判定: (.*)", output)
     return {
         "packed_objects": int(packed.group(1)) if packed else 0,
         "voxel_density_percent": float(density.group(1)) if density else None,
@@ -237,5 +242,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        print(f"error: {error}", file=sys.stderr)
+        print(f"エラー: {error}", file=sys.stderr)
         raise
