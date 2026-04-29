@@ -8,6 +8,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65585.stl",
     "num_faces_original": 132,
     "normalized_max_dim": 11.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        0.2661290322580645,
+        8.47833870967742,
+        11.0
+      ],
+      "extent": [
+        0.2661290322580645,
+        8.47833870967742,
+        11.0
+      ]
+    },
     "local_file": "65585_decorated_box.stl"
   },
   {
@@ -19,6 +36,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65607.stl",
     "num_faces_original": 318,
     "normalized_max_dim": 11.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.280215548083323,
+        11.0,
+        1.0676121930874531
+      ],
+      "extent": [
+        10.280215548083323,
+        11.0,
+        1.0676121930874531
+      ]
+    },
     "local_file": "65607_fairchild_22_aircraft.stl"
   },
   {
@@ -30,6 +64,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65608.stl",
     "num_faces_original": 318,
     "normalized_max_dim": 11.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.280215548083323,
+        11.0,
+        1.0676121930874531
+      ],
+      "extent": [
+        10.280215548083323,
+        11.0,
+        1.0676121930874531
+      ]
+    },
     "local_file": "65608_fairchild_22_aircraft.stl"
   },
   {
@@ -41,6 +92,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65609.stl",
     "num_faces_original": 360,
     "normalized_max_dim": 11.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        5.029670865692158,
+        11.0,
+        0.27875140383361313
+      ],
+      "extent": [
+        5.029670865692158,
+        11.0,
+        0.27875140383361313
+      ]
+    },
     "local_file": "65609_fairchild_22_aircraft.stl"
   },
   {
@@ -52,6 +120,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65610.stl",
     "num_faces_original": 254,
     "normalized_max_dim": 11.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        8.229540162345089,
+        11.0,
+        0.6991970036557146
+      ],
+      "extent": [
+        8.229540162345089,
+        11.0,
+        0.6991970036557146
+      ]
+    },
     "local_file": "65610_fairchild_22_aircraft.stl"
   },
   {
@@ -63,6 +148,23 @@
     "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311327.stl",
     "num_faces_original": 116,
     "normalized_max_dim": 11.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        11.0,
+        7.333088798200311,
+        1.9792006065086245
+      ],
+      "extent": [
+        11.0,
+        7.333088798200311,
+        1.9792006065086245
+      ]
+    },
     "local_file": "311327_p6_6_120_pinhole_camera.stl"
   }
 ]

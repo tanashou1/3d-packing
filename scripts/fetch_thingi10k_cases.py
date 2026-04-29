@@ -32,6 +32,76 @@ CASES = {
         "target_max_dim": 12.0,
         "file_ids": [65582, 65583, 65584, 65614, 65615, 49166, 57355, 958471],
     },
+    "stacked_small": {
+        "target_max_dim": 8.0,
+        "file_ids": [
+            65585,
+            65588,
+            311327,
+            311329,
+            65607,
+            65608,
+            65609,
+            65610,
+            98412,
+            98413,
+            90223,
+            90224,
+            90225,
+            90226,
+            57420,
+            82058,
+            82059,
+            123044,
+            237735,
+            90279,
+            90280,
+            204952,
+            204953,
+            60276,
+        ],
+    },
+    "stacked_mixed": {
+        "target_max_dim": 9.0,
+        "file_ids": [
+            49160,
+            49163,
+            49166,
+            49167,
+            65561,
+            65564,
+            65582,
+            65583,
+            65584,
+            65585,
+            65586,
+            65587,
+            237623,
+            237626,
+            237632,
+            237633,
+            237634,
+            237640,
+            65607,
+            65608,
+            65609,
+            65610,
+            65614,
+            65615,
+            188496,
+            188497,
+            188501,
+            65641,
+            65642,
+            65643,
+            65644,
+            204954,
+            204955,
+            204956,
+            204957,
+            204958,
+        ],
+    },
 }
 
 
@@ -60,6 +130,7 @@ def main() -> None:
             model = fetch_json(API.format(file_id=file_id))
             triangles = fetch_stl(model["link"])
             triangles = normalize_triangles(triangles, case["target_max_dim"])
+            bbox = triangle_bbox(triangles)
             out_path = case_dir / f"{file_id}_{safe_name(model.get('Name', 'model'))}.stl"
             write_ascii_stl(out_path, f"thingi10k_{file_id}", triangles)
             metadata.append(
@@ -72,6 +143,11 @@ def main() -> None:
                     "source": model.get("link"),
                     "num_faces_original": model.get("num_faces"),
                     "normalized_max_dim": case["target_max_dim"],
+                    "bbox": {
+                        "min": bbox[0],
+                        "max": bbox[1],
+                        "extent": [bbox[1][axis] - bbox[0][axis] for axis in range(3)],
+                    },
                     "local_file": out_path.name,
                 }
             )
@@ -163,6 +239,17 @@ def normalize_triangles(
             )
         )
     return normalized
+
+
+def triangle_bbox(triangles: list[tuple[Vec3, Vec3, Vec3]]) -> tuple[list[float], list[float]]:
+    mins = [math.inf, math.inf, math.inf]
+    maxs = [-math.inf, -math.inf, -math.inf]
+    for tri in triangles:
+        for v in tri:
+            for axis in range(3):
+                mins[axis] = min(mins[axis], v[axis])
+                maxs[axis] = max(maxs[axis], v[axis])
+    return mins, maxs
 
 
 def write_ascii_stl(path: Path, name: str, triangles: list[tuple[Vec3, Vec3, Vec3]]) -> None:

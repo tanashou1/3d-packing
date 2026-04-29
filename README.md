@@ -62,11 +62,13 @@ Generated cases:
 | `micro` | 6 | Very small low-face-count smoke test |
 | `mechanical` | 8 | Mechanical/cup/speaker-like solids |
 | `mixed` | 8 | Mixed boxes, aircraft parts, chassis, and flexible mesh |
+| `stacked_small` | 24 | Many small low-face-count solids for stacked packing |
+| `stacked_mixed` | 36 | Larger mixed set designed to force multi-layer placement |
 
 Each case directory contains `attribution.json`. The top-level
 `samples/thingi10k/manifest.json` aggregates the same metadata, including
 file IDs, Thingiverse IDs, authors, licenses, original face counts, and source
-URLs.
+URLs, and normalized bounding boxes.
 
 ## Pack STL files
 
@@ -96,24 +98,28 @@ Useful options:
 Inputs can be individual STL files or directories containing STL files. The
 output is one ASCII STL containing all successfully packed objects.
 
-## Thingi10K validation
+## Thingi10K bbox-tight validation
 
-The generated Thingi10K cases were packed with the release binary. A machine
-readable copy of these results is stored in `samples/thingi10k/validation.json`.
+The generated Thingi10K cases are packed with a tray computed from object
+bounding boxes. The validator deliberately chooses a tray footprint smaller
+than the sum of all per-object bbox x/y footprints, so a simple flat placement
+cannot satisfy the case. A machine readable copy of these results is stored in
+`samples/thingi10k/validation.json`.
 
-| Case | Command-specific tray | Voxel | Packed | Voxel density | Ray disassembly |
-| --- | --- | ---: | ---: | ---: | --- |
-| `micro` | `24 x 24 x 20` | `2.5` | 6/6 | 11.94% | all removable |
-| `mechanical` | `42 x 42 x 32` | `3.5` | 8/8 | 12.53% | all removable |
-| `mixed` | `42 x 42 x 32` | `3.5` | 8/8 | 9.57% | all removable |
+| Case | Bbox-tight tray | Voxel | Packed | Voxel density | Tray footprint vs sum bbox footprint |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `micro` | `15 x 15 x 15` | `2.5` | 6/6 | 42.59% | 225.00 / 454.94 |
+| `mechanical` | `28 x 28 x 21` | `3.5` | 8/8 | 42.19% | 784.00 / 1206.94 |
+| `mixed` | `21 x 21 x 24.5` | `3.5` | 8/8 | 50.00% | 441.00 / 567.40 |
+| `stacked_small` | `18 x 18 x 20` | `2.0` | 24/24 | 63.95% | 324.00 / 928.69 |
+| `stacked_mixed` | `25 x 25 x 22.5` | `2.5` | 36/36 | 62.56% | 625.00 / 1790.90 |
 
-Example validation command:
+Regenerate and validate the bbox-tight cases:
 
 ```bash
 cargo build --release
-./target/release/spectral-packing pack samples/thingi10k/micro \
-  --out target/thingi10k/tight/micro-24.stl \
-  --width 24 --depth 24 --height 20 \
-  --voxel 2.5 \
-  --rotations 24
+python3 scripts/fetch_thingi10k_cases.py --output samples/thingi10k
+python3 scripts/validate_thingi10k_tight.py \
+  --samples samples/thingi10k \
+  --output target/thingi10k/tight_bbox
 ```

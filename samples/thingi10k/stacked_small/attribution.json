@@ -1,0 +1,674 @@
+[
+  {
+    "file_id": 65585,
+    "thing_id": 20976,
+    "name": "Decorated Box ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65585.stl",
+    "num_faces_original": 132,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        0.1935483870967742,
+        6.166064516129032,
+        8.0
+      ],
+      "extent": [
+        0.1935483870967742,
+        6.166064516129032,
+        8.0
+      ]
+    },
+    "local_file": "65585_decorated_box.stl"
+  },
+  {
+    "file_id": 65588,
+    "thing_id": 20976,
+    "name": "Decorated Box ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65588.stl",
+    "num_faces_original": 28,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        5.3731343283582085,
+        8.0,
+        2.388059701492537
+      ],
+      "extent": [
+        5.3731343283582085,
+        8.0,
+        2.388059701492537
+      ]
+    },
+    "local_file": "65588_decorated_box.stl"
+  },
+  {
+    "file_id": 311327,
+    "thing_id": 157844,
+    "name": "P6*6 120 Pinhole Camera ",
+    "author": "schlem",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311327.stl",
+    "num_faces_original": 116,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        8.0,
+        5.333155489600227,
+        1.4394186229153634
+      ],
+      "extent": [
+        8.0,
+        5.333155489600227,
+        1.4394186229153634
+      ]
+    },
+    "local_file": "311327_p6_6_120_pinhole_camera.stl"
+  },
+  {
+    "file_id": 311329,
+    "thing_id": 157844,
+    "name": "P6*6 120 Pinhole Camera ",
+    "author": "schlem",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311329.stl",
+    "num_faces_original": 28,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        3.4544379778848584,
+        8.0,
+        0.9093305580281189
+      ],
+      "extent": [
+        3.4544379778848584,
+        8.0,
+        0.9093305580281189
+      ]
+    },
+    "local_file": "311329_p6_6_120_pinhole_camera.stl"
+  },
+  {
+    "file_id": 65607,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65607.stl",
+    "num_faces_original": 318,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        7.476520398606052,
+        8.0,
+        0.7764452313363295
+      ],
+      "extent": [
+        7.476520398606052,
+        8.0,
+        0.7764452313363295
+      ]
+    },
+    "local_file": "65607_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 65608,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65608.stl",
+    "num_faces_original": 318,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        7.476520398606052,
+        8.0,
+        0.7764452313363295
+      ],
+      "extent": [
+        7.476520398606052,
+        8.0,
+        0.7764452313363295
+      ]
+    },
+    "local_file": "65608_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 65609,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65609.stl",
+    "num_faces_original": 360,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        3.6579424477761155,
+        8.0,
+        0.2027282936971732
+      ],
+      "extent": [
+        3.6579424477761155,
+        8.0,
+        0.2027282936971732
+      ]
+    },
+    "local_file": "65609_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 65610,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65610.stl",
+    "num_faces_original": 254,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        5.985120118069156,
+        8.0,
+        0.5085069117496106
+      ],
+      "extent": [
+        5.985120118069156,
+        8.0,
+        0.5085069117496106
+      ]
+    },
+    "local_file": "65610_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 98412,
+    "thing_id": 34194,
+    "name": "Wooden Train Track Support by Mo",
+    "author": "Disk",
+    "license": "Creative Commons - Attribution - Share Alike",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/98412.stl",
+    "num_faces_original": 60,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        5.859154929577465,
+        3.380281690140845,
+        8.0
+      ],
+      "extent": [
+        5.859154929577465,
+        3.380281690140845,
+        8.0
+      ]
+    },
+    "local_file": "98412_wooden_train_track_support_by_mo.stl"
+  },
+  {
+    "file_id": 98413,
+    "thing_id": 34194,
+    "name": "Wooden Train Track Support by Mo",
+    "author": "Disk",
+    "license": "Creative Commons - Attribution - Share Alike",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/98413.stl",
+    "num_faces_original": 60,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        3.555555555555556,
+        2.0512820512820515,
+        8.0
+      ],
+      "extent": [
+        3.555555555555556,
+        2.0512820512820515,
+        8.0
+      ]
+    },
+    "local_file": "98413_wooden_train_track_support_by_mo.stl"
+  },
+  {
+    "file_id": 90223,
+    "thing_id": 30958,
+    "name": "Duals of Polyhedra  ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/90223.stl",
+    "num_faces_original": 44,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        8.0,
+        8.0,
+        5.656842465433845
+      ],
+      "extent": [
+        8.0,
+        8.0,
+        5.656842465433845
+      ]
+    },
+    "local_file": "90223_duals_of_polyhedra.stl"
+  },
+  {
+    "file_id": 90224,
+    "thing_id": 30958,
+    "name": "Duals of Polyhedra  ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/90224.stl",
+    "num_faces_original": 36,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        5.656851356129097,
+        7.999999999999999,
+        5.656851356129097
+      ],
+      "extent": [
+        5.656851356129097,
+        7.999999999999999,
+        5.656851356129097
+      ]
+    },
+    "local_file": "90224_duals_of_polyhedra.stl"
+  },
+  {
+    "file_id": 90225,
+    "thing_id": 30958,
+    "name": "Duals of Polyhedra  ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/90225.stl",
+    "num_faces_original": 180,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        6.927972793238716,
+        6.927972793238716,
+        7.999999999999999
+      ],
+      "extent": [
+        6.927972793238716,
+        6.927972793238716,
+        7.999999999999999
+      ]
+    },
+    "local_file": "90225_duals_of_polyhedra.stl"
+  },
+  {
+    "file_id": 90226,
+    "thing_id": 30958,
+    "name": "Duals of Polyhedra  ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/90226.stl",
+    "num_faces_original": 92,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        8.0,
+        8.0,
+        6.927961904761904
+      ],
+      "extent": [
+        8.0,
+        8.0,
+        6.927961904761904
+      ]
+    },
+    "local_file": "90226_duals_of_polyhedra.stl"
+  },
+  {
+    "file_id": 57420,
+    "thing_id": 17634,
+    "name": "Paper Crimper ",
+    "author": "jetty",
+    "license": "Attribution - Non-Commercial - Share Alike",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/57420.stl",
+    "num_faces_original": 156,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        3.076923076923077,
+        3.076923076923077,
+        8.0
+      ],
+      "extent": [
+        3.076923076923077,
+        3.076923076923077,
+        8.0
+      ]
+    },
+    "local_file": "57420_paper_crimper.stl"
+  },
+  {
+    "file_id": 82058,
+    "thing_id": 27624,
+    "name": "Travel  Baseball Game ",
+    "author": "theroar",
+    "license": "Creative Commons - Attribution - Share Alike",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/82058.stl",
+    "num_faces_original": 188,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        8.0,
+        8.0,
+        3.0
+      ],
+      "extent": [
+        8.0,
+        8.0,
+        3.0
+      ]
+    },
+    "local_file": "82058_travel_baseball_game.stl"
+  },
+  {
+    "file_id": 82059,
+    "thing_id": 27624,
+    "name": "Travel  Baseball Game ",
+    "author": "theroar",
+    "license": "Creative Commons - Attribution - Share Alike",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/82059.stl",
+    "num_faces_original": 188,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        8.0,
+        8.0,
+        0.96
+      ],
+      "extent": [
+        8.0,
+        8.0,
+        0.96
+      ]
+    },
+    "local_file": "82059_travel_baseball_game.stl"
+  },
+  {
+    "file_id": 123044,
+    "thing_id": 44784,
+    "name": "Folding Magnifying Glass ",
+    "author": "mattjoyce",
+    "license": "Creative Commons - Attribution - Share Alike",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/123044.stl",
+    "num_faces_original": 72,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        6.368932038834951,
+        7.999999999999999,
+        0.38834951456310673
+      ],
+      "extent": [
+        6.368932038834951,
+        7.999999999999999,
+        0.38834951456310673
+      ]
+    },
+    "local_file": "123044_folding_magnifying_glass.stl"
+  },
+  {
+    "file_id": 237735,
+    "thing_id": 113908,
+    "name": "Banjo Ukulele (Banjolele) ",
+    "author": "AndreasBastian",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/237735.stl",
+    "num_faces_original": 84,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        0.48485333333333336,
+        8.0,
+        1.4545575757575757
+      ],
+      "extent": [
+        0.48485333333333336,
+        8.0,
+        1.4545575757575757
+      ]
+    },
+    "local_file": "237735_banjo_ukulele_banjolele.stl"
+  },
+  {
+    "file_id": 90279,
+    "thing_id": 30981,
+    "name": "Sam&#039;s Gears ",
+    "author": "pleppik",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/90279.stl",
+    "num_faces_original": 76,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        3.4782608695652173,
+        8.0,
+        2.7826087785803755
+      ],
+      "extent": [
+        3.4782608695652173,
+        8.0,
+        2.7826087785803755
+      ]
+    },
+    "local_file": "90279_sam_039_s_gears.stl"
+  },
+  {
+    "file_id": 90280,
+    "thing_id": 30981,
+    "name": "Sam&#039;s Gears ",
+    "author": "pleppik",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/90280.stl",
+    "num_faces_original": 76,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        2.4242424242424243,
+        8.0,
+        1.9393939971923828
+      ],
+      "extent": [
+        2.4242424242424243,
+        8.0,
+        1.9393939971923828
+      ]
+    },
+    "local_file": "90280_sam_039_s_gears.stl"
+  },
+  {
+    "file_id": 204952,
+    "thing_id": 93320,
+    "name": "iOS App Icon Keychains ",
+    "author": "pixil3d",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/204952.stl",
+    "num_faces_original": 364,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        6.764785638924954,
+        8.0,
+        0.708349475396124
+      ],
+      "extent": [
+        6.764785638924954,
+        8.0,
+        0.708349475396124
+      ]
+    },
+    "local_file": "204952_ios_app_icon_keychains.stl"
+  },
+  {
+    "file_id": 204953,
+    "thing_id": 93320,
+    "name": "iOS App Icon Keychains ",
+    "author": "pixil3d",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/204953.stl",
+    "num_faces_original": 572,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        6.764785638924954,
+        8.0,
+        0.6766525211820779
+      ],
+      "extent": [
+        6.764785638924954,
+        8.0,
+        0.6766525211820779
+      ]
+    },
+    "local_file": "204953_ios_app_icon_keychains.stl"
+  },
+  {
+    "file_id": 60276,
+    "thing_id": 18678,
+    "name": "XY Table ",
+    "author": "Geir",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/60276.stl",
+    "num_faces_original": 212,
+    "normalized_max_dim": 8.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        2.6666666666666665,
+        8.0,
+        3.333333333333333
+      ],
+      "extent": [
+        2.6666666666666665,
+        8.0,
+        3.333333333333333
+      ]
+    },
+    "local_file": "60276_xy_table.stl"
+  }
+]
