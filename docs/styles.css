@@ -48,7 +48,14 @@ p {
   text-transform: uppercase;
 }
 
-.repo-link {
+.header-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.pill-link {
   color: var(--text);
   text-decoration: none;
   border: 1px solid var(--line);
@@ -168,6 +175,10 @@ canvas {
   header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .header-links {
+    justify-content: flex-start;
   }
 
   main {
