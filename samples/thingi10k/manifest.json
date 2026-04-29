@@ -1,0 +1,250 @@
+{
+  "mechanical": [
+    {
+      "file_id": 65561,
+      "thing_id": 20814,
+      "name": "Tracked base for small robots ",
+      "author": "tinhead",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65561.stl",
+      "num_faces_original": 548,
+      "normalized_max_dim": 13.0,
+      "local_file": "65561_tracked_base_for_small_robots.stl"
+    },
+    {
+      "file_id": 65564,
+      "thing_id": 20814,
+      "name": "Tracked base for small robots ",
+      "author": "tinhead",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65564.stl",
+      "num_faces_original": 1088,
+      "normalized_max_dim": 13.0,
+      "local_file": "65564_tracked_base_for_small_robots.stl"
+    },
+    {
+      "file_id": 98330,
+      "thing_id": 34021,
+      "name": "Coffee Grinder ",
+      "author": "aubenc",
+      "license": "Creative Commons - Attribution - Share Alike",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/98330.stl",
+      "num_faces_original": 1056,
+      "normalized_max_dim": 13.0,
+      "local_file": "98330_coffee_grinder.stl"
+    },
+    {
+      "file_id": 49160,
+      "thing_id": 14905,
+      "name": "PolyCup ",
+      "author": "WickedAndy",
+      "license": "Creative Commons - Attribution - Share Alike",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/49160.stl",
+      "num_faces_original": 552,
+      "normalized_max_dim": 13.0,
+      "local_file": "49160_polycup.stl"
+    },
+    {
+      "file_id": 49163,
+      "thing_id": 14599,
+      "name": "Tri-Track dual servo robot tank chassis ",
+      "author": "Ktronics",
+      "license": "Creative Commons - Attribution - Share Alike",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/49163.stl",
+      "num_faces_original": 808,
+      "normalized_max_dim": 13.0,
+      "local_file": "49163_tri_track_dual_servo_robot_tank_chassis.stl"
+    },
+    {
+      "file_id": 73736,
+      "thing_id": 24308,
+      "name": "A Dodecahedron Speaker for Desktop Printers ",
+      "author": "seanmichaelragan",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/73736.stl",
+      "num_faces_original": 2388,
+      "normalized_max_dim": 13.0,
+      "local_file": "73736_a_dodecahedron_speaker_for_desktop_printers.stl"
+    },
+    {
+      "file_id": 73737,
+      "thing_id": 24308,
+      "name": "A Dodecahedron Speaker for Desktop Printers ",
+      "author": "seanmichaelragan",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/73737.stl",
+      "num_faces_original": 2430,
+      "normalized_max_dim": 13.0,
+      "local_file": "73737_a_dodecahedron_speaker_for_desktop_printers.stl"
+    },
+    {
+      "file_id": 311322,
+      "thing_id": 157844,
+      "name": "P6*6 120 Pinhole Camera ",
+      "author": "schlem",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311322.stl",
+      "num_faces_original": 192,
+      "normalized_max_dim": 13.0,
+      "local_file": "311322_p6_6_120_pinhole_camera.stl"
+    }
+  ],
+  "micro": [
+    {
+      "file_id": 65585,
+      "thing_id": 20976,
+      "name": "Decorated Box ",
+      "author": "pmoews",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65585.stl",
+      "num_faces_original": 132,
+      "normalized_max_dim": 11.0,
+      "local_file": "65585_decorated_box.stl"
+    },
+    {
+      "file_id": 65607,
+      "thing_id": 20977,
+      "name": "Fairchild 22 aircraft ",
+      "author": "multirap",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65607.stl",
+      "num_faces_original": 318,
+      "normalized_max_dim": 11.0,
+      "local_file": "65607_fairchild_22_aircraft.stl"
+    },
+    {
+      "file_id": 65608,
+      "thing_id": 20977,
+      "name": "Fairchild 22 aircraft ",
+      "author": "multirap",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65608.stl",
+      "num_faces_original": 318,
+      "normalized_max_dim": 11.0,
+      "local_file": "65608_fairchild_22_aircraft.stl"
+    },
+    {
+      "file_id": 65609,
+      "thing_id": 20977,
+      "name": "Fairchild 22 aircraft ",
+      "author": "multirap",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65609.stl",
+      "num_faces_original": 360,
+      "normalized_max_dim": 11.0,
+      "local_file": "65609_fairchild_22_aircraft.stl"
+    },
+    {
+      "file_id": 65610,
+      "thing_id": 20977,
+      "name": "Fairchild 22 aircraft ",
+      "author": "multirap",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65610.stl",
+      "num_faces_original": 254,
+      "normalized_max_dim": 11.0,
+      "local_file": "65610_fairchild_22_aircraft.stl"
+    },
+    {
+      "file_id": 311327,
+      "thing_id": 157844,
+      "name": "P6*6 120 Pinhole Camera ",
+      "author": "schlem",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311327.stl",
+      "num_faces_original": 116,
+      "normalized_max_dim": 11.0,
+      "local_file": "311327_p6_6_120_pinhole_camera.stl"
+    }
+  ],
+  "mixed": [
+    {
+      "file_id": 65582,
+      "thing_id": 20976,
+      "name": "Decorated Box ",
+      "author": "pmoews",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65582.stl",
+      "num_faces_original": 576,
+      "normalized_max_dim": 12.0,
+      "local_file": "65582_decorated_box.stl"
+    },
+    {
+      "file_id": 65583,
+      "thing_id": 20976,
+      "name": "Decorated Box ",
+      "author": "pmoews",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65583.stl",
+      "num_faces_original": 468,
+      "normalized_max_dim": 12.0,
+      "local_file": "65583_decorated_box.stl"
+    },
+    {
+      "file_id": 65584,
+      "thing_id": 20976,
+      "name": "Decorated Box ",
+      "author": "pmoews",
+      "license": "Creative Commons - Attribution",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65584.stl",
+      "num_faces_original": 244,
+      "normalized_max_dim": 12.0,
+      "local_file": "65584_decorated_box.stl"
+    },
+    {
+      "file_id": 65614,
+      "thing_id": 20977,
+      "name": "Fairchild 22 aircraft ",
+      "author": "multirap",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65614.stl",
+      "num_faces_original": 862,
+      "normalized_max_dim": 12.0,
+      "local_file": "65614_fairchild_22_aircraft.stl"
+    },
+    {
+      "file_id": 65615,
+      "thing_id": 20977,
+      "name": "Fairchild 22 aircraft ",
+      "author": "multirap",
+      "license": "Creative Commons - Attribution - Non-Commercial",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65615.stl",
+      "num_faces_original": 862,
+      "normalized_max_dim": 12.0,
+      "local_file": "65615_fairchild_22_aircraft.stl"
+    },
+    {
+      "file_id": 49166,
+      "thing_id": 14599,
+      "name": "Tri-Track dual servo robot tank chassis ",
+      "author": "Ktronics",
+      "license": "Creative Commons - Attribution - Share Alike",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/49166.stl",
+      "num_faces_original": 1132,
+      "normalized_max_dim": 12.0,
+      "local_file": "49166_tri_track_dual_servo_robot_tank_chassis.stl"
+    },
+    {
+      "file_id": 57355,
+      "thing_id": 17612,
+      "name": "PL1Q Vampire; the 3d printable quadcopter ",
+      "author": "swepet",
+      "license": "Attribution - Non-Commercial - Share Alike",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/57355.stl",
+      "num_faces_original": 1564,
+      "normalized_max_dim": 12.0,
+      "local_file": "57355_pl1q_vampire_the_3d_printable_quadcopter.stl"
+    },
+    {
+      "file_id": 958471,
+      "thing_id": 442571,
+      "name": "FlexMesh 2.1 Snap Together Flexible Chainmail Mesh ",
+      "author": "neobobkrause",
+      "license": "Attribution - Non-Commercial - Share Alike",
+      "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/958471.stl",
+      "num_faces_original": 1874,
+      "normalized_max_dim": 12.0,
+      "local_file": "958471_flexmesh_2_1_snap_together_flexible_chainmail_me.stl"
+    }
+  ]
+}

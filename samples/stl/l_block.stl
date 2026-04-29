@@ -1,0 +1,254 @@
+solid l_block
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 0 0
+      vertex 14 5 0
+      vertex 14 0 0
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 0 0
+      vertex 0 5 0
+      vertex 14 5 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 5
+      vertex 14 0 5
+      vertex 14 5 5
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 5
+      vertex 14 5 5
+      vertex 0 5 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 0
+      vertex 14 0 0
+      vertex 14 0 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 0
+      vertex 14 0 5
+      vertex 0 0 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 14 0 0
+      vertex 14 5 0
+      vertex 14 5 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 14 0 0
+      vertex 14 5 5
+      vertex 14 0 5
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 14 5 0
+      vertex 0 5 0
+      vertex 0 5 5
+    endloop
+  endfacet
+  facet normal 0 1 -0
+    outer loop
+      vertex 14 5 0
+      vertex 0 5 5
+      vertex 14 5 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 5 0
+      vertex 0 0 0
+      vertex 0 0 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 5 0
+      vertex 0 0 5
+      vertex 0 5 5
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 5 0
+      vertex 5 14 0
+      vertex 5 5 0
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 5 0
+      vertex 0 14 0
+      vertex 5 14 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 5 5
+      vertex 5 5 5
+      vertex 5 14 5
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 5 5
+      vertex 5 14 5
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 5 0
+      vertex 5 5 0
+      vertex 5 5 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 5 0
+      vertex 5 5 5
+      vertex 0 5 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 5 5 0
+      vertex 5 14 0
+      vertex 5 14 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 5 5 0
+      vertex 5 14 5
+      vertex 5 5 5
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 5 14 0
+      vertex 0 14 0
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 1 -0
+    outer loop
+      vertex 5 14 0
+      vertex 0 14 5
+      vertex 5 14 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 14 0
+      vertex 0 5 0
+      vertex 0 5 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 14 0
+      vertex 0 5 5
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 0 5
+      vertex 5 5 5
+      vertex 5 0 5
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 0 5
+      vertex 0 5 5
+      vertex 5 5 5
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 12
+      vertex 5 0 12
+      vertex 5 5 12
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 12
+      vertex 5 5 12
+      vertex 0 5 12
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 5
+      vertex 5 0 5
+      vertex 5 0 12
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 5
+      vertex 5 0 12
+      vertex 0 0 12
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 5 0 5
+      vertex 5 5 5
+      vertex 5 5 12
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 5 0 5
+      vertex 5 5 12
+      vertex 5 0 12
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 5 5 5
+      vertex 0 5 5
+      vertex 0 5 12
+    endloop
+  endfacet
+  facet normal 0 1 -0
+    outer loop
+      vertex 5 5 5
+      vertex 0 5 12
+      vertex 5 5 12
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 5 5
+      vertex 0 0 5
+      vertex 0 0 12
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 5 5
+      vertex 0 0 12
+      vertex 0 5 12
+    endloop
+  endfacet
+endsolid l_block

@@ -1,0 +1,26 @@
+{
+  "micro": {
+    "command": "./target/release/spectral-packing pack samples/thingi10k/micro --out target/thingi10k/tight/micro-24.stl --width 24 --depth 24 --height 20 --voxel 2.5 --rotations 24",
+    "output": "target/thingi10k/tight/micro-24.stl",
+    "packed_objects": 6,
+    "voxel_density_percent": 11.94,
+    "mesh_density_percent": 1.25,
+    "ray_disassembly": "all 6 packed objects removable by directional blocking analysis in 1 passes"
+  },
+  "mechanical": {
+    "command": "./target/release/spectral-packing pack samples/thingi10k/mechanical --out target/thingi10k/tight/mechanical-42.stl --width 42 --depth 42 --height 32 --voxel 3.5 --rotations 24",
+    "output": "target/thingi10k/tight/mechanical-42.stl",
+    "packed_objects": 8,
+    "voxel_density_percent": 12.53,
+    "mesh_density_percent": 1.64,
+    "ray_disassembly": "all 8 packed objects removable by directional blocking analysis in 1 passes"
+  },
+  "mixed": {
+    "command": "./target/release/spectral-packing pack samples/thingi10k/mixed --out target/thingi10k/tight/mixed-42.stl --width 42 --depth 42 --height 32 --voxel 3.5 --rotations 24",
+    "output": "target/thingi10k/tight/mixed-42.stl",
+    "packed_objects": 8,
+    "voxel_density_percent": 9.57,
+    "mesh_density_percent": 1.22,
+    "ray_disassembly": "all 8 packed objects removable by directional blocking analysis in 1 passes"
+  }
+}

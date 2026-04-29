@@ -1,0 +1,254 @@
+solid u_bridge
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 0 0
+      vertex 4 14 0
+      vertex 4 0 0
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 0 0
+      vertex 0 14 0
+      vertex 4 14 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 5
+      vertex 4 0 5
+      vertex 4 14 5
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 5
+      vertex 4 14 5
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 0
+      vertex 4 0 0
+      vertex 4 0 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 0 0
+      vertex 4 0 5
+      vertex 0 0 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 4 0 0
+      vertex 4 14 0
+      vertex 4 14 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 4 0 0
+      vertex 4 14 5
+      vertex 4 0 5
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 4 14 0
+      vertex 0 14 0
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 1 -0
+    outer loop
+      vertex 4 14 0
+      vertex 0 14 5
+      vertex 4 14 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 14 0
+      vertex 0 0 0
+      vertex 0 0 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 14 0
+      vertex 0 0 5
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 12 0 0
+      vertex 16 14 0
+      vertex 16 0 0
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 12 0 0
+      vertex 12 14 0
+      vertex 16 14 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 12 0 5
+      vertex 16 0 5
+      vertex 16 14 5
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 12 0 5
+      vertex 16 14 5
+      vertex 12 14 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 12 0 0
+      vertex 16 0 0
+      vertex 16 0 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 12 0 0
+      vertex 16 0 5
+      vertex 12 0 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 16 0 0
+      vertex 16 14 0
+      vertex 16 14 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 16 0 0
+      vertex 16 14 5
+      vertex 16 0 5
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 16 14 0
+      vertex 12 14 0
+      vertex 12 14 5
+    endloop
+  endfacet
+  facet normal 0 1 -0
+    outer loop
+      vertex 16 14 0
+      vertex 12 14 5
+      vertex 16 14 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 12 14 0
+      vertex 12 0 0
+      vertex 12 0 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 12 14 0
+      vertex 12 0 5
+      vertex 12 14 5
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 10 0
+      vertex 16 14 0
+      vertex 16 10 0
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex 0 10 0
+      vertex 0 14 0
+      vertex 16 14 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 10 5
+      vertex 16 10 5
+      vertex 16 14 5
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 10 5
+      vertex 16 14 5
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 10 0
+      vertex 16 10 0
+      vertex 16 10 5
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex 0 10 0
+      vertex 16 10 5
+      vertex 0 10 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 16 10 0
+      vertex 16 14 0
+      vertex 16 14 5
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 16 10 0
+      vertex 16 14 5
+      vertex 16 10 5
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex 16 14 0
+      vertex 0 14 0
+      vertex 0 14 5
+    endloop
+  endfacet
+  facet normal 0 1 -0
+    outer loop
+      vertex 16 14 0
+      vertex 0 14 5
+      vertex 16 14 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 14 0
+      vertex 0 10 0
+      vertex 0 10 5
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex 0 14 0
+      vertex 0 10 5
+      vertex 0 14 5
+    endloop
+  endfacet
+endsolid u_bridge

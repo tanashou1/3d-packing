@@ -1,0 +1,68 @@
+[
+  {
+    "file_id": 65585,
+    "thing_id": 20976,
+    "name": "Decorated Box ",
+    "author": "pmoews",
+    "license": "Creative Commons - Attribution",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65585.stl",
+    "num_faces_original": 132,
+    "normalized_max_dim": 11.0,
+    "local_file": "65585_decorated_box.stl"
+  },
+  {
+    "file_id": 65607,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65607.stl",
+    "num_faces_original": 318,
+    "normalized_max_dim": 11.0,
+    "local_file": "65607_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 65608,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65608.stl",
+    "num_faces_original": 318,
+    "normalized_max_dim": 11.0,
+    "local_file": "65608_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 65609,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65609.stl",
+    "num_faces_original": 360,
+    "normalized_max_dim": 11.0,
+    "local_file": "65609_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 65610,
+    "thing_id": 20977,
+    "name": "Fairchild 22 aircraft ",
+    "author": "multirap",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/65610.stl",
+    "num_faces_original": 254,
+    "normalized_max_dim": 11.0,
+    "local_file": "65610_fairchild_22_aircraft.stl"
+  },
+  {
+    "file_id": 311327,
+    "thing_id": 157844,
+    "name": "P6*6 120 Pinhole Camera ",
+    "author": "schlem",
+    "license": "Creative Commons - Attribution - Non-Commercial",
+    "source": "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main/raw_meshes/311327.stl",
+    "num_faces_original": 116,
+    "normalized_max_dim": 11.0,
+    "local_file": "311327_p6_6_120_pinhole_camera.stl"
+  }
+]
