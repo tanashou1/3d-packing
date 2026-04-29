@@ -5,6 +5,7 @@ use std::f32::consts::PI;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Context, Result};
 use rustfft::num_complex::Complex32;
@@ -25,6 +26,7 @@ enum Command {
         refine_margin: f32,
         no_ray_disassembly: bool,
         post_opt_passes: usize,
+        time_limit_seconds: Option<f32>,
     },
     Sample {
         output: PathBuf,
@@ -239,7 +241,9 @@ fn main() -> Result<()> {
             refine_margin,
             no_ray_disassembly,
             post_opt_passes,
+            time_limit_seconds,
         } => {
+            let deadline = Deadline::from_seconds(time_limit_seconds);
             let tray = Tray::new(width, depth, height, voxel)?;
             let input_paths = collect_stl_inputs(&inputs)?;
             if input_paths.is_empty() {
@@ -269,6 +273,7 @@ fn main() -> Result<()> {
                 } else {
                     post_opt_passes
                 },
+                deadline,
             )?;
             write_combined_stl(&out, &result.placed)
                 .with_context(|| format!("{} の書き込みに失敗しました", out.display()))?;
@@ -309,6 +314,7 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
     let mut refine_margin = 0.05;
     let mut no_ray_disassembly = false;
     let mut post_opt_passes = 4;
+    let mut time_limit_seconds = None;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -352,6 +358,10 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
                 i += 1;
                 post_opt_passes = parse_value(&args, i, "--post-opt-passes")?;
             }
+            "--time-limit-seconds" | "--timeout-seconds" => {
+                i += 1;
+                time_limit_seconds = Some(parse_value(&args, i, "--time-limit-seconds")?);
+            }
             "-h" | "--help" => bail!("{}", usage()),
             arg if arg.starts_with('-') => bail!("不明なpackオプションです: `{arg}`"),
             arg => inputs.push(PathBuf::from(arg)),
@@ -378,6 +388,7 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
         refine_margin,
         no_ray_disassembly,
         post_opt_passes,
+        time_limit_seconds,
     })
 }
 
@@ -414,7 +425,7 @@ where
 }
 
 fn usage() -> &'static str {
-    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す90度姿勢数。最大24（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
+    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す90度姿勢数。最大24（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
 }
 
 struct PackResult {
@@ -422,6 +433,7 @@ struct PackResult {
     unpacked: Vec<String>,
     ray_report: Option<RayDisassemblyReport>,
     post_report: Option<PostOptimizationReport>,
+    timed_out: bool,
 }
 
 #[derive(Clone)]
@@ -439,6 +451,38 @@ struct PostOptimizationReport {
     unresolved_groups: usize,
 }
 
+#[derive(Clone, Copy)]
+struct Deadline {
+    ends_at: Option<Instant>,
+}
+
+impl Deadline {
+    fn from_seconds(seconds: Option<f32>) -> Self {
+        Self {
+            ends_at: seconds
+                .map(|seconds| Instant::now() + Duration::from_secs_f32(seconds.max(0.0))),
+        }
+    }
+
+    fn expired(self) -> bool {
+        self.ends_at
+            .map(|ends_at| Instant::now() >= ends_at)
+            .unwrap_or(false)
+    }
+}
+
+enum PlaceOutcome {
+    Placed(PlacedMesh),
+    NotFound,
+    TimedOut,
+}
+
+enum SearchOutcome {
+    Found(Placement),
+    NotFound,
+    TimedOut,
+}
+
 fn pack_meshes(
     meshes: &[Mesh],
     tray: Tray,
@@ -449,12 +493,18 @@ fn pack_meshes(
     refine_margin: f32,
     ray_disassembly: bool,
     post_opt_passes: usize,
+    deadline: Deadline,
 ) -> Result<PackResult> {
     let mut occupied = vec![false; tray.len()];
     let mut placed = Vec::new();
     let mut unpacked = Vec::new();
+    let mut timed_out = false;
 
     for (source_index, mesh) in meshes.iter().enumerate() {
+        if deadline.expired() {
+            timed_out = true;
+            break;
+        }
         match place_mesh(
             mesh,
             source_index,
@@ -468,17 +518,22 @@ fn pack_meshes(
             refine_margin,
             None,
             true,
+            deadline,
         )? {
-            Some(placed_mesh) => placed.push(placed_mesh),
-            None => {
+            PlaceOutcome::Placed(placed_mesh) => placed.push(placed_mesh),
+            PlaceOutcome::NotFound => {
                 eprintln!("  パックできませんでした");
                 unpacked.push(mesh.name.clone());
+            }
+            PlaceOutcome::TimedOut => {
+                timed_out = true;
+                break;
             }
         }
     }
 
-    let post_report = if ray_disassembly && post_opt_passes > 0 {
-        Some(optimize_disassembly(
+    let post_report = if !timed_out && ray_disassembly && post_opt_passes > 0 {
+        let (report, post_timed_out) = optimize_disassembly(
             meshes,
             tray,
             rotations,
@@ -488,7 +543,10 @@ fn pack_meshes(
             refine_margin,
             post_opt_passes,
             &mut placed,
-        )?)
+            deadline,
+        )?;
+        timed_out |= post_timed_out;
+        Some(report)
     } else {
         None
     };
@@ -504,6 +562,7 @@ fn pack_meshes(
         unpacked,
         ray_report,
         post_report,
+        timed_out,
     })
 }
 
@@ -522,11 +581,12 @@ fn place_mesh(
     refine_margin: f32,
     forbidden: Option<&HashSet<PlacementKey>>,
     log: bool,
-) -> Result<Option<PlacedMesh>> {
+    deadline: Deadline,
+) -> Result<PlaceOutcome> {
     if log {
         eprintln!("{} を配置中...", mesh.name);
     }
-    let Some(best) = search_placement(
+    let best = match search_placement(
         mesh,
         tray,
         rotations,
@@ -534,9 +594,11 @@ fn place_mesh(
         height_weight,
         interlock_free,
         forbidden,
-    )?
-    else {
-        return Ok(None);
+        deadline,
+    )? {
+        SearchOutcome::Found(best) => best,
+        SearchOutcome::NotFound => return Ok(PlaceOutcome::NotFound),
+        SearchOutcome::TimedOut => return Ok(PlaceOutcome::TimedOut),
     };
 
     let discrete_translation = Vec3::new(
@@ -551,10 +613,14 @@ fn place_mesh(
             placed,
             tray,
             refine_margin,
+            deadline,
         )
     } else {
         discrete_translation
     };
+    if deadline.expired() {
+        return Ok(PlaceOutcome::TimedOut);
+    }
     let refinement = translation - discrete_translation;
     let triangles: Vec<[Vec3; 3]> = best
         .oriented
@@ -577,7 +643,7 @@ fn place_mesh(
             best.offset, refinement.x, refinement.y, refinement.z, best.rotation_index, best.cost
         );
     }
-    Ok(Some(PlacedMesh {
+    Ok(PlaceOutcome::Placed(PlacedMesh {
         name: best.oriented.name,
         source_index,
         triangles,
@@ -602,14 +668,20 @@ fn optimize_disassembly(
     refine_margin: f32,
     max_passes: usize,
     placed: &mut Vec<PlacedMesh>,
-) -> Result<PostOptimizationReport> {
+    deadline: Deadline,
+) -> Result<(PostOptimizationReport, bool)> {
     let mut passes = 0;
     let mut attempted_groups = 0;
     let mut accepted_reinsertions = 0;
     let mut reinserted_objects = 0;
     let mut report = ray_casting_disassembly(tray, placed);
 
+    let mut timed_out = false;
     while passes < max_passes && !report.remaining_groups.is_empty() {
+        if deadline.expired() {
+            timed_out = true;
+            break;
+        }
         passes += 1;
         let current_score = disassembly_score(&report);
         let groups = report.remaining_groups.clone();
@@ -628,6 +700,7 @@ fn optimize_disassembly(
                 placed,
                 &group,
                 current_score,
+                deadline,
             )?
             else {
                 continue;
@@ -646,13 +719,16 @@ fn optimize_disassembly(
         }
     }
 
-    Ok(PostOptimizationReport {
-        passes,
-        attempted_groups,
-        accepted_reinsertions,
-        reinserted_objects,
-        unresolved_groups: report.remaining_groups.len(),
-    })
+    Ok((
+        PostOptimizationReport {
+            passes,
+            attempted_groups,
+            accepted_reinsertions,
+            reinserted_objects,
+            unresolved_groups: report.remaining_groups.len(),
+        },
+        timed_out,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -667,6 +743,7 @@ fn best_reinsertion_candidate(
     placed: &[PlacedMesh],
     group: &[usize],
     current_score: (usize, usize),
+    deadline: Deadline,
 ) -> Result<Option<(Vec<PlacedMesh>, RayDisassemblyReport)>> {
     let group_set = group.iter().copied().collect::<HashSet<_>>();
     let kept = placed
@@ -696,8 +773,14 @@ fn best_reinsertion_candidate(
 
     let mut best: Option<(Vec<PlacedMesh>, RayDisassemblyReport, (usize, usize))> = None;
     for order in reinsertion_orders(&source_indices, meshes) {
+        if deadline.expired() {
+            break;
+        }
         for height_multiplier in [1.0, 1.5, 0.5, 2.5] {
             for avoid_original in [true, false] {
+                if deadline.expired() {
+                    break;
+                }
                 let forbidden = if avoid_original {
                     original_keys.clone()
                 } else {
@@ -714,6 +797,7 @@ fn best_reinsertion_candidate(
                     interlock_free,
                     refine,
                     refine_margin,
+                    deadline,
                 )?
                 else {
                     continue;
@@ -747,17 +831,21 @@ fn try_reinsert_order(
     interlock_free: bool,
     refine: bool,
     refine_margin: f32,
+    deadline: Deadline,
 ) -> Result<Option<Vec<PlacedMesh>>> {
     let mut candidate = kept.to_vec();
     let mut occupied = occupied_from_placed(tray, &candidate);
 
     for &source_index in order {
+        if deadline.expired() {
+            return Ok(None);
+        }
         let forbidden = forbidden_keys
             .iter()
             .filter_map(|&(key_source, key)| (key_source == source_index).then_some(key))
             .collect::<HashSet<_>>();
         let forbidden = (!forbidden.is_empty()).then_some(forbidden);
-        let Some(placed_mesh) = place_mesh(
+        let placed_mesh = match place_mesh(
             &meshes[source_index],
             source_index,
             tray,
@@ -770,9 +858,10 @@ fn try_reinsert_order(
             refine_margin,
             forbidden.as_ref(),
             false,
-        )?
-        else {
-            return Ok(None);
+            deadline,
+        )? {
+            PlaceOutcome::Placed(placed_mesh) => placed_mesh,
+            PlaceOutcome::NotFound | PlaceOutcome::TimedOut => return Ok(None),
         };
         candidate.push(placed_mesh);
     }
@@ -832,13 +921,20 @@ fn search_placement(
     height_weight: f32,
     interlock_free: bool,
     forbidden: Option<&HashSet<PlacementKey>>,
-) -> Result<Option<Placement>> {
+    deadline: Deadline,
+) -> Result<SearchOutcome> {
     let distance = manhattan_distance_field(tray, occupied);
+    if deadline.expired() {
+        return Ok(SearchOutcome::TimedOut);
+    }
     let existing_fft = fft_of_bool_grid(tray, occupied);
     let distance_fft = fft_of_scalar_grid(tray, &distance);
     let mut best: Option<Placement> = None;
 
     for (rotation_index, &rotation) in rotations.iter().enumerate() {
+        if deadline.expired() {
+            return Ok(SearchOutcome::TimedOut);
+        }
         let oriented = voxelize_mesh(mesh, rotation, tray.voxel)?;
         if oriented.voxel_count == 0 {
             continue;
@@ -860,6 +956,9 @@ fn search_placement(
         let max_y = tray.ny - oriented.ny;
         let max_z = tray.nz - oriented.nz;
         for z in 0..=max_z {
+            if deadline.expired() {
+                return Ok(SearchOutcome::TimedOut);
+            }
             let z_norm = if tray.nz > 1 {
                 z as f32 / (tray.nz - 1) as f32
             } else {
@@ -903,7 +1002,9 @@ fn search_placement(
         }
     }
 
-    Ok(best)
+    Ok(best
+        .map(SearchOutcome::Found)
+        .unwrap_or(SearchOutcome::NotFound))
 }
 
 fn stamp_cells(tray: Tray, occupied: &mut [bool], cells: &[(usize, usize, usize)]) {
@@ -969,6 +1070,7 @@ fn refine_translation(
     placed: &[PlacedMesh],
     tray: Tray,
     margin: f32,
+    deadline: Deadline,
 ) -> Vec3 {
     let mut translation = initial;
     let directions = [
@@ -978,12 +1080,18 @@ fn refine_translation(
     ];
     for _ in 0..3 {
         for direction in directions {
+            if deadline.expired() {
+                return translation;
+            }
             let mut lo = 0.0;
             let mut hi = tray.voxel;
             for _ in 0..12 {
+                if deadline.expired() {
+                    return translation;
+                }
                 let mid = (lo + hi) * 0.5;
                 let candidate = translation + direction * mid;
-                if placement_is_valid(object, candidate, placed, tray, margin) {
+                if placement_is_valid(object, candidate, placed, tray, margin, deadline) {
                     lo = mid;
                 } else {
                     hi = mid;
@@ -1003,7 +1111,11 @@ fn placement_is_valid(
     placed: &[PlacedMesh],
     tray: Tray,
     margin: f32,
+    deadline: Deadline,
 ) -> bool {
+    if deadline.expired() {
+        return false;
+    }
     let triangles = translated_triangles(&object.triangles, translation);
     let bbox = bbox_of_triangles(&triangles);
     if bbox.0.x < 0.0
@@ -1015,7 +1127,7 @@ fn placement_is_valid(
     {
         return false;
     }
-    !collides_with_placed(&triangles, bbox, placed, margin)
+    !collides_with_placed(&triangles, bbox, placed, margin, deadline)
 }
 
 fn translated_triangles(triangles: &[[Vec3; 3]], translation: Vec3) -> Vec<[Vec3; 3]> {
@@ -1036,12 +1148,19 @@ fn collides_with_placed(
     bbox: (Vec3, Vec3),
     placed: &[PlacedMesh],
     margin: f32,
+    deadline: Deadline,
 ) -> bool {
     for object in placed {
+        if deadline.expired() {
+            return true;
+        }
         if !bbox_overlap(bbox, object.bbox, margin) {
             continue;
         }
         for tri_a in triangles {
+            if deadline.expired() {
+                return true;
+            }
             let bbox_a = bbox_of_triangle(tri_a);
             for tri_b in &object.triangles {
                 if bbox_overlap(bbox_a, bbox_of_triangle(tri_b), margin) {
@@ -2011,6 +2130,12 @@ fn print_summary(result: &PackResult, tray: Tray, out: &Path) {
             result.unpacked.join(", ")
         );
     }
+    if result.timed_out {
+        println!(
+            "時間制限により打ち切りました。部分結果として{}個の物体を出力します",
+            result.placed.len()
+        );
+    }
     if let Some(report) = &result.post_report {
         println!(
             "後処理最適化: {}パス、{}グループ試行、{}回採用、{}個を再挿入、未解決グループ{}個",
@@ -2245,8 +2370,10 @@ mod tests {
             0.0,
             2,
             &mut placed,
+            Deadline { ends_at: None },
         )
         .unwrap();
+        let post = post.0;
         let after = ray_casting_disassembly(tray, &placed);
         assert!(after.remaining_groups.is_empty());
         assert_eq!(post.accepted_reinsertions, 1);
@@ -2260,10 +2387,41 @@ mod tests {
             triangles: cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0)),
         };
         let object = voxelize_mesh(&mesh, Rotation::identity(), 1.0).unwrap();
-        let refined = refine_translation(&object, Vec3::new(1.0, 1.0, 1.0), &[], tray, 0.0);
+        let refined = refine_translation(
+            &object,
+            Vec3::new(1.0, 1.0, 1.0),
+            &[],
+            tray,
+            0.0,
+            Deadline { ends_at: None },
+        );
         assert!(refined.z < 0.01);
         assert!(refined.x < 0.01);
         assert!(refined.y < 0.01);
+    }
+
+    #[test]
+    fn expired_deadline_returns_partial_result() {
+        let tray = Tray::new(5.0, 5.0, 5.0, 1.0).unwrap();
+        let meshes = vec![Mesh {
+            name: "box".to_string(),
+            triangles: cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0)),
+        }];
+        let result = pack_meshes(
+            &meshes,
+            tray,
+            &rotation_set(1),
+            1.0,
+            true,
+            true,
+            0.0,
+            true,
+            1,
+            Deadline::from_seconds(Some(0.0)),
+        )
+        .unwrap();
+        assert!(result.timed_out);
+        assert!(result.placed.is_empty());
     }
 
     fn test_placed(name: &str, occupied_cells: Vec<(usize, usize, usize)>) -> PlacedMesh {
