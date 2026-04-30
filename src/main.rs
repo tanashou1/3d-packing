@@ -26,6 +26,10 @@ enum Command {
         refine_margin: f32,
         no_ray_disassembly: bool,
         post_opt_passes: usize,
+        beam_width: usize,
+        repack_passes: usize,
+        repack_window: usize,
+        repack_unpacked_limit: usize,
         time_limit_seconds: Option<f32>,
     },
     Sample {
@@ -119,37 +123,37 @@ impl Mesh {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct Rotation {
-    m: [[i32; 3]; 3],
+    m: [[f32; 3]; 3],
 }
 
 impl Rotation {
     fn identity() -> Self {
         Self {
-            m: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+            m: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
         }
     }
 
     fn apply(self, v: Vec3) -> Vec3 {
         let c = [v.x, v.y, v.z];
         Vec3::new(
-            self.m[0]
-                .iter()
-                .enumerate()
-                .map(|(i, &s)| s as f32 * c[i])
-                .sum(),
-            self.m[1]
-                .iter()
-                .enumerate()
-                .map(|(i, &s)| s as f32 * c[i])
-                .sum(),
-            self.m[2]
-                .iter()
-                .enumerate()
-                .map(|(i, &s)| s as f32 * c[i])
-                .sum(),
+            self.m[0].iter().enumerate().map(|(i, &s)| s * c[i]).sum(),
+            self.m[1].iter().enumerate().map(|(i, &s)| s * c[i]).sum(),
+            self.m[2].iter().enumerate().map(|(i, &s)| s * c[i]).sum(),
         )
+    }
+
+    fn from_euler(rx: f32, ry: f32, rz: f32) -> Self {
+        let (sx, cx) = rx.sin_cos();
+        let (sy, cy) = ry.sin_cos();
+        let (sz, cz) = rz.sin_cos();
+        let mx = [[1.0, 0.0, 0.0], [0.0, cx, -sx], [0.0, sx, cx]];
+        let my = [[cy, 0.0, sy], [0.0, 1.0, 0.0], [-sy, 0.0, cy]];
+        let mz = [[cz, -sz, 0.0], [sz, cz, 0.0], [0.0, 0.0, 1.0]];
+        Self {
+            m: mat_mul(mz, mat_mul(my, mx)),
+        }
     }
 }
 
@@ -241,6 +245,10 @@ fn main() -> Result<()> {
             refine_margin,
             no_ray_disassembly,
             post_opt_passes,
+            beam_width,
+            repack_passes,
+            repack_window,
+            repack_unpacked_limit,
             time_limit_seconds,
         } => {
             let deadline = Deadline::from_seconds(time_limit_seconds);
@@ -258,7 +266,7 @@ fn main() -> Result<()> {
                     .partial_cmp(&a.bbox_volume())
                     .unwrap_or(Ordering::Equal)
             });
-            let rotations = rotation_set(rotations.min(24).max(1));
+            let rotations = rotation_set(rotations.max(1));
             let result = pack_meshes(
                 &meshes,
                 tray,
@@ -273,6 +281,10 @@ fn main() -> Result<()> {
                 } else {
                     post_opt_passes
                 },
+                beam_width.max(1),
+                repack_passes,
+                repack_window.max(1),
+                repack_unpacked_limit.max(1),
                 deadline,
             )?;
             write_combined_stl(&out, &result.placed)
@@ -314,6 +326,10 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
     let mut refine_margin = 0.05;
     let mut no_ray_disassembly = false;
     let mut post_opt_passes = 4;
+    let mut beam_width = 1;
+    let mut repack_passes = 2;
+    let mut repack_window = 8;
+    let mut repack_unpacked_limit = 8;
     let mut time_limit_seconds = None;
     let mut i = 0;
     while i < args.len() {
@@ -358,6 +374,23 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
                 i += 1;
                 post_opt_passes = parse_value(&args, i, "--post-opt-passes")?;
             }
+            "--beam-width" => {
+                i += 1;
+                beam_width = parse_value(&args, i, "--beam-width")?;
+            }
+            "--no-repack" => repack_passes = 0,
+            "--repack-passes" => {
+                i += 1;
+                repack_passes = parse_value(&args, i, "--repack-passes")?;
+            }
+            "--repack-window" => {
+                i += 1;
+                repack_window = parse_value(&args, i, "--repack-window")?;
+            }
+            "--repack-unpacked-limit" => {
+                i += 1;
+                repack_unpacked_limit = parse_value(&args, i, "--repack-unpacked-limit")?;
+            }
             "--time-limit-seconds" | "--timeout-seconds" => {
                 i += 1;
                 time_limit_seconds = Some(parse_value(&args, i, "--time-limit-seconds")?);
@@ -388,6 +421,10 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
         refine_margin,
         no_ray_disassembly,
         post_opt_passes,
+        beam_width,
+        repack_passes,
+        repack_window,
+        repack_unpacked_limit,
         time_limit_seconds,
     })
 }
@@ -425,7 +462,7 @@ where
 }
 
 fn usage() -> &'static str {
-    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す90度姿勢数。最大24（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
+    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す姿勢数。24超で追加角度姿勢も試す（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --beam-width N          残す部分配置候補数（既定値: 1）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --repack-passes N       未配置物体向け局所再パックの最大パス数（既定値: 2）\n      --repack-window N       局所再パックで一度に外す配置済み物体数（既定値: 8）\n      --repack-unpacked-limit N 局所再パックで一度に試す未配置物体数（既定値: 8）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-repack             未配置物体向け局所再パックを無効化\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
 }
 
 struct PackResult {
@@ -443,12 +480,31 @@ struct RayDisassemblyReport {
     passes: usize,
 }
 
+#[derive(Default)]
 struct PostOptimizationReport {
     passes: usize,
     attempted_groups: usize,
     accepted_reinsertions: usize,
     reinserted_objects: usize,
     unresolved_groups: usize,
+    repack_passes: usize,
+    repack_attempted_groups: usize,
+    repack_accepted: usize,
+    repack_added_objects: usize,
+}
+
+struct RepackAttempt {
+    placed: Vec<PlacedMesh>,
+    unpacked_indices: Vec<usize>,
+    added_objects: usize,
+}
+
+struct BeamState {
+    placed: Vec<PlacedMesh>,
+    occupied: Vec<bool>,
+    unpacked_indices: Vec<usize>,
+    cost: f32,
+    greedy_baseline: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -483,6 +539,12 @@ enum SearchOutcome {
     TimedOut,
 }
 
+enum SearchManyOutcome {
+    Found(Vec<Placement>),
+    NotFound,
+    TimedOut,
+}
+
 fn pack_meshes(
     meshes: &[Mesh],
     tray: Tray,
@@ -493,47 +555,51 @@ fn pack_meshes(
     refine_margin: f32,
     ray_disassembly: bool,
     post_opt_passes: usize,
+    beam_width: usize,
+    repack_passes: usize,
+    repack_window: usize,
+    repack_unpacked_limit: usize,
     deadline: Deadline,
 ) -> Result<PackResult> {
     let mut occupied = vec![false; tray.len()];
     let mut placed = Vec::new();
-    let mut unpacked = Vec::new();
+    let mut unpacked_indices = Vec::new();
     let mut timed_out = false;
 
-    for (source_index, mesh) in meshes.iter().enumerate() {
-        if deadline.expired() {
-            timed_out = true;
-            break;
-        }
-        match place_mesh(
-            mesh,
-            source_index,
-            tray,
-            rotations,
-            &mut occupied,
-            &placed,
-            height_weight,
-            interlock_free,
-            refine,
-            refine_margin,
-            None,
-            true,
-            deadline,
-        )? {
-            PlaceOutcome::Placed(placed_mesh) => placed.push(placed_mesh),
-            PlaceOutcome::NotFound => {
-                eprintln!("  パックできませんでした");
-                unpacked.push(mesh.name.clone());
-            }
-            PlaceOutcome::TimedOut => {
+    if beam_width <= 1 {
+        for (source_index, mesh) in meshes.iter().enumerate() {
+            if deadline.expired() {
                 timed_out = true;
                 break;
             }
+            match place_mesh(
+                mesh,
+                source_index,
+                tray,
+                rotations,
+                &mut occupied,
+                &placed,
+                height_weight,
+                interlock_free,
+                refine,
+                refine_margin,
+                None,
+                true,
+                deadline,
+            )? {
+                PlaceOutcome::Placed(placed_mesh) => placed.push(placed_mesh),
+                PlaceOutcome::NotFound => {
+                    eprintln!("  パックできませんでした");
+                    unpacked_indices.push(source_index);
+                }
+                PlaceOutcome::TimedOut => {
+                    timed_out = true;
+                    break;
+                }
+            }
         }
-    }
-
-    let post_report = if !timed_out && ray_disassembly && post_opt_passes > 0 {
-        let (report, post_timed_out) = optimize_disassembly(
+    } else {
+        match pack_meshes_beam(
             meshes,
             tray,
             rotations,
@@ -541,11 +607,58 @@ fn pack_meshes(
             interlock_free,
             refine,
             refine_margin,
-            post_opt_passes,
-            &mut placed,
+            beam_width,
             deadline,
-        )?;
-        timed_out |= post_timed_out;
+        )? {
+            Some(state) => {
+                placed = state.placed;
+                unpacked_indices = state.unpacked_indices;
+            }
+            None => timed_out = true,
+        }
+    }
+
+    let post_report = if !timed_out && (ray_disassembly && post_opt_passes > 0 || repack_passes > 0)
+    {
+        let mut report = PostOptimizationReport::default();
+        if ray_disassembly && post_opt_passes > 0 {
+            let (disassembly_report, post_timed_out) = optimize_disassembly(
+                meshes,
+                tray,
+                rotations,
+                height_weight,
+                interlock_free,
+                refine,
+                refine_margin,
+                post_opt_passes,
+                &mut placed,
+                deadline,
+            )?;
+            timed_out |= post_timed_out;
+            report = disassembly_report;
+        }
+        if !timed_out && repack_passes > 0 && !unpacked_indices.is_empty() {
+            let (repacked, repack_timed_out) = optimize_unpacked_repack(
+                meshes,
+                tray,
+                rotations,
+                height_weight,
+                interlock_free,
+                refine,
+                refine_margin,
+                repack_passes,
+                repack_window,
+                repack_unpacked_limit,
+                &mut placed,
+                &mut unpacked_indices,
+                deadline,
+            )?;
+            timed_out |= repack_timed_out;
+            report.repack_passes = repacked.repack_passes;
+            report.repack_attempted_groups = repacked.repack_attempted_groups;
+            report.repack_accepted = repacked.repack_accepted;
+            report.repack_added_objects = repacked.repack_added_objects;
+        }
         Some(report)
     } else {
         None
@@ -559,7 +672,10 @@ fn pack_meshes(
 
     Ok(PackResult {
         placed,
-        unpacked,
+        unpacked: unpacked_indices
+            .into_iter()
+            .map(|source_index| meshes[source_index].name.clone())
+            .collect(),
         ray_report,
         post_report,
         timed_out,
@@ -600,7 +716,33 @@ fn place_mesh(
         SearchOutcome::NotFound => return Ok(PlaceOutcome::NotFound),
         SearchOutcome::TimedOut => return Ok(PlaceOutcome::TimedOut),
     };
+    place_with_candidate(
+        mesh,
+        source_index,
+        tray,
+        occupied,
+        placed,
+        refine,
+        refine_margin,
+        log,
+        deadline,
+        best,
+    )
+}
 
+#[allow(clippy::too_many_arguments)]
+fn place_with_candidate(
+    mesh: &Mesh,
+    source_index: usize,
+    tray: Tray,
+    occupied: &mut [bool],
+    placed: &[PlacedMesh],
+    refine: bool,
+    refine_margin: f32,
+    log: bool,
+    deadline: Deadline,
+    best: Placement,
+) -> Result<PlaceOutcome> {
     let discrete_translation = Vec3::new(
         best.offset.0 as f32 * tray.voxel,
         best.offset.1 as f32 * tray.voxel,
@@ -656,6 +798,203 @@ fn place_mesh(
         bbox,
         occupied_cells,
     }))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pack_meshes_beam(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    beam_width: usize,
+    deadline: Deadline,
+) -> Result<Option<BeamState>> {
+    let mut states = vec![BeamState {
+        placed: Vec::new(),
+        occupied: vec![false; tray.len()],
+        unpacked_indices: Vec::new(),
+        cost: 0.0,
+        greedy_baseline: true,
+    }];
+    let baseline_rotation_count = rotations.len().min(24);
+    let baseline_rotations = &rotations[..baseline_rotation_count];
+
+    for (source_index, mesh) in meshes.iter().enumerate() {
+        if deadline.expired() {
+            return Ok(None);
+        }
+        eprintln!("{} を配置中... beam候補{}個", mesh.name, states.len());
+        let mut next_states = Vec::new();
+        for state in &states {
+            let mut greedy_forbidden = HashSet::new();
+            if state.greedy_baseline {
+                match search_placements(
+                    mesh,
+                    tray,
+                    baseline_rotations,
+                    &state.occupied,
+                    height_weight,
+                    interlock_free,
+                    None,
+                    1,
+                    deadline,
+                )? {
+                    SearchManyOutcome::Found(candidates) => {
+                        if let Some(placement) = candidates.into_iter().next() {
+                            greedy_forbidden.insert((
+                                placement.rotation_index,
+                                placement.offset.0,
+                                placement.offset.1,
+                                placement.offset.2,
+                            ));
+                            let mut occupied = state.occupied.clone();
+                            let outcome = place_with_candidate(
+                                mesh,
+                                source_index,
+                                tray,
+                                &mut occupied,
+                                &state.placed,
+                                refine,
+                                refine_margin,
+                                false,
+                                deadline,
+                                placement.clone(),
+                            )?;
+                            match outcome {
+                                PlaceOutcome::Placed(placed_mesh) => {
+                                    let mut placed = state.placed.clone();
+                                    placed.push(placed_mesh);
+                                    next_states.push(BeamState {
+                                        placed,
+                                        occupied,
+                                        unpacked_indices: state.unpacked_indices.clone(),
+                                        cost: state.cost + placement.cost,
+                                        greedy_baseline: true,
+                                    });
+                                }
+                                PlaceOutcome::NotFound => {}
+                                PlaceOutcome::TimedOut => return Ok(None),
+                            }
+                        }
+                    }
+                    SearchManyOutcome::NotFound => {
+                        let mut skipped = state.unpacked_indices.clone();
+                        skipped.push(source_index);
+                        next_states.push(BeamState {
+                            placed: state.placed.clone(),
+                            occupied: state.occupied.clone(),
+                            unpacked_indices: skipped,
+                            cost: state.cost + 1.0e6,
+                            greedy_baseline: true,
+                        });
+                    }
+                    SearchManyOutcome::TimedOut => return Ok(None),
+                }
+            }
+
+            match search_placements(
+                mesh,
+                tray,
+                rotations,
+                &state.occupied,
+                height_weight,
+                interlock_free,
+                (!greedy_forbidden.is_empty()).then_some(&greedy_forbidden),
+                beam_width,
+                deadline,
+            )? {
+                SearchManyOutcome::Found(candidates) => {
+                    for placement in candidates {
+                        let mut occupied = state.occupied.clone();
+                        let outcome = place_with_candidate(
+                            mesh,
+                            source_index,
+                            tray,
+                            &mut occupied,
+                            &state.placed,
+                            refine,
+                            refine_margin,
+                            false,
+                            deadline,
+                            placement.clone(),
+                        )?;
+                        match outcome {
+                            PlaceOutcome::Placed(placed_mesh) => {
+                                let mut placed = state.placed.clone();
+                                placed.push(placed_mesh);
+                                next_states.push(BeamState {
+                                    placed,
+                                    occupied,
+                                    unpacked_indices: state.unpacked_indices.clone(),
+                                    cost: state.cost + placement.cost,
+                                    greedy_baseline: false,
+                                });
+                            }
+                            PlaceOutcome::NotFound => {}
+                            PlaceOutcome::TimedOut => return Ok(None),
+                        }
+                    }
+                }
+                SearchManyOutcome::NotFound => {}
+                SearchManyOutcome::TimedOut => return Ok(None),
+            }
+
+            let mut skipped = state.unpacked_indices.clone();
+            skipped.push(source_index);
+            next_states.push(BeamState {
+                placed: state.placed.clone(),
+                occupied: state.occupied.clone(),
+                unpacked_indices: skipped,
+                cost: state.cost + 1.0e6,
+                greedy_baseline: false,
+            });
+        }
+
+        next_states.sort_by(compare_beam_states);
+        if next_states.len() > beam_width {
+            let greedy_state = next_states
+                .iter()
+                .position(|state| state.greedy_baseline)
+                .map(|index| next_states.remove(index));
+            next_states.truncate(beam_width);
+            if let Some(greedy_state) = greedy_state {
+                if !next_states.iter().any(|state| state.greedy_baseline) {
+                    if next_states.len() == beam_width {
+                        next_states.pop();
+                    }
+                    next_states.push(greedy_state);
+                    next_states.sort_by(compare_beam_states);
+                }
+            }
+        }
+        if let Some(best) = next_states.first() {
+            eprintln!(
+                "  beam最良: {}/{}個配置、未配置{}個",
+                best.placed.len(),
+                source_index + 1,
+                best.unpacked_indices.len()
+            );
+        }
+        states = next_states;
+    }
+
+    states.sort_by(compare_beam_states);
+    Ok(states.into_iter().next())
+}
+
+fn compare_beam_states(a: &BeamState, b: &BeamState) -> Ordering {
+    b.placed
+        .len()
+        .cmp(&a.placed.len())
+        .then_with(|| {
+            placed_mesh_volume(&b.placed)
+                .partial_cmp(&placed_mesh_volume(&a.placed))
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| a.cost.partial_cmp(&b.cost).unwrap_or(Ordering::Equal))
 }
 
 fn optimize_disassembly(
@@ -726,6 +1065,7 @@ fn optimize_disassembly(
             accepted_reinsertions,
             reinserted_objects,
             unresolved_groups: report.remaining_groups.len(),
+            ..Default::default()
         },
         timed_out,
     ))
@@ -913,6 +1253,246 @@ fn occupied_from_placed(tray: Tray, placed: &[PlacedMesh]) -> Vec<bool> {
     occupied
 }
 
+fn placed_mesh_volume(placed: &[PlacedMesh]) -> f32 {
+    placed.iter().map(|object| object.mesh_volume).sum()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn optimize_unpacked_repack(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    max_passes: usize,
+    repack_window: usize,
+    unpacked_limit: usize,
+    placed: &mut Vec<PlacedMesh>,
+    unpacked_indices: &mut Vec<usize>,
+    deadline: Deadline,
+) -> Result<(PostOptimizationReport, bool)> {
+    let mut report = PostOptimizationReport::default();
+    let mut timed_out = false;
+
+    while report.repack_passes < max_passes && !unpacked_indices.is_empty() {
+        if deadline.expired() {
+            timed_out = true;
+            break;
+        }
+        report.repack_passes += 1;
+        let baseline_count = placed.len();
+        let baseline_volume = placed_mesh_volume(placed);
+        let groups = repack_removal_groups(placed, repack_window);
+        let mut best: Option<RepackAttempt> = None;
+
+        for group in groups {
+            report.repack_attempted_groups += 1;
+            let group_set = group.iter().copied().collect::<HashSet<_>>();
+            let kept = placed
+                .iter()
+                .enumerate()
+                .filter_map(|(index, object)| {
+                    (!group_set.contains(&index)).then_some(object.clone())
+                })
+                .collect::<Vec<_>>();
+            let removed_sources = group
+                .iter()
+                .map(|&index| placed[index].source_index)
+                .collect::<Vec<_>>();
+            let unpacked_batch = unpacked_indices
+                .iter()
+                .copied()
+                .take(unpacked_limit)
+                .collect::<Vec<_>>();
+
+            for order in repack_orders(&unpacked_batch, &removed_sources, meshes) {
+                if deadline.expired() {
+                    timed_out = true;
+                    break;
+                }
+                let attempt = try_reinsert_partial(
+                    meshes,
+                    tray,
+                    rotations,
+                    &kept,
+                    &order,
+                    height_weight,
+                    interlock_free,
+                    refine,
+                    refine_margin,
+                    deadline,
+                )?;
+                let remaining_unpacked = merge_unpacked_indices(
+                    &attempt.unpacked_indices,
+                    unpacked_indices.iter().copied().skip(unpacked_batch.len()),
+                );
+                let added_objects = attempt.placed.len().saturating_sub(baseline_count);
+                let improved = attempt.placed.len() > baseline_count
+                    || (attempt.placed.len() == baseline_count
+                        && placed_mesh_volume(&attempt.placed) > baseline_volume + 1.0e-3);
+                if improved
+                    && best
+                        .as_ref()
+                        .map(|current| compare_repack_attempts(&attempt, current) == Ordering::Less)
+                        .unwrap_or(true)
+                {
+                    best = Some(RepackAttempt {
+                        placed: attempt.placed,
+                        unpacked_indices: remaining_unpacked,
+                        added_objects,
+                    });
+                }
+            }
+            if timed_out {
+                break;
+            }
+        }
+
+        let Some(best) = best else {
+            break;
+        };
+        report.repack_accepted += 1;
+        report.repack_added_objects += best.added_objects;
+        *placed = best.placed;
+        *unpacked_indices = best.unpacked_indices;
+    }
+
+    Ok((report, timed_out))
+}
+
+fn repack_removal_groups(placed: &[PlacedMesh], repack_window: usize) -> Vec<Vec<usize>> {
+    if placed.is_empty() {
+        return Vec::new();
+    }
+    let window = repack_window.min(placed.len()).max(1);
+    let mut groups = Vec::new();
+    let tail = (placed.len() - window..placed.len()).collect::<Vec<_>>();
+    push_unique_group(&mut groups, tail);
+
+    let mut by_top_z = (0..placed.len()).collect::<Vec<_>>();
+    by_top_z.sort_by(|&a, &b| {
+        placed[b]
+            .bbox
+            .1
+            .z
+            .partial_cmp(&placed[a].bbox.1.z)
+            .unwrap_or(Ordering::Equal)
+    });
+    by_top_z.truncate(window);
+    push_unique_group(&mut groups, by_top_z);
+
+    let mut by_small_volume = (0..placed.len()).collect::<Vec<_>>();
+    by_small_volume.sort_by(|&a, &b| {
+        placed[a]
+            .mesh_volume
+            .partial_cmp(&placed[b].mesh_volume)
+            .unwrap_or(Ordering::Equal)
+    });
+    by_small_volume.truncate(window);
+    push_unique_group(&mut groups, by_small_volume);
+    groups
+}
+
+fn push_unique_group(groups: &mut Vec<Vec<usize>>, mut group: Vec<usize>) {
+    group.sort_unstable();
+    if !group.is_empty() && !groups.iter().any(|existing| existing == &group) {
+        groups.push(group);
+    }
+}
+
+fn merge_unpacked_indices(first: &[usize], rest: impl IntoIterator<Item = usize>) -> Vec<usize> {
+    let mut seen = HashSet::new();
+    let mut merged = Vec::new();
+    for source_index in first.iter().copied().chain(rest) {
+        if seen.insert(source_index) {
+            merged.push(source_index);
+        }
+    }
+    merged
+}
+
+fn repack_orders(unpacked: &[usize], removed: &[usize], meshes: &[Mesh]) -> Vec<Vec<usize>> {
+    let mut orders = Vec::new();
+    let mut unplaced_first = unpacked.to_vec();
+    unplaced_first.extend_from_slice(removed);
+    push_unique_order(&mut orders, unplaced_first.clone());
+
+    let mut large_first = unplaced_first.clone();
+    large_first.sort_by(|&a, &b| {
+        meshes[b]
+            .bbox_volume()
+            .partial_cmp(&meshes[a].bbox_volume())
+            .unwrap_or(Ordering::Equal)
+    });
+    push_unique_order(&mut orders, large_first.clone());
+    large_first.reverse();
+    push_unique_order(&mut orders, large_first);
+
+    let mut removed_first = removed.to_vec();
+    removed_first.extend_from_slice(unpacked);
+    push_unique_order(&mut orders, removed_first);
+    orders
+}
+
+#[allow(clippy::too_many_arguments)]
+fn try_reinsert_partial(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    kept: &[PlacedMesh],
+    order: &[usize],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    deadline: Deadline,
+) -> Result<RepackAttempt> {
+    let mut candidate = kept.to_vec();
+    let mut occupied = occupied_from_placed(tray, &candidate);
+    let mut unpacked_indices = Vec::new();
+
+    for &source_index in order {
+        if deadline.expired() {
+            unpacked_indices.push(source_index);
+            continue;
+        }
+        match place_mesh(
+            &meshes[source_index],
+            source_index,
+            tray,
+            rotations,
+            &mut occupied,
+            &candidate,
+            height_weight,
+            interlock_free,
+            refine,
+            refine_margin,
+            None,
+            false,
+            deadline,
+        )? {
+            PlaceOutcome::Placed(placed_mesh) => candidate.push(placed_mesh),
+            PlaceOutcome::NotFound | PlaceOutcome::TimedOut => unpacked_indices.push(source_index),
+        }
+    }
+
+    Ok(RepackAttempt {
+        placed: candidate,
+        unpacked_indices,
+        added_objects: 0,
+    })
+}
+
+fn compare_repack_attempts(a: &RepackAttempt, b: &RepackAttempt) -> Ordering {
+    b.placed.len().cmp(&a.placed.len()).then_with(|| {
+        placed_mesh_volume(&b.placed)
+            .partial_cmp(&placed_mesh_volume(&a.placed))
+            .unwrap_or(Ordering::Equal)
+    })
+}
+
 fn search_placement(
     mesh: &Mesh,
     tray: Tray,
@@ -923,17 +1503,49 @@ fn search_placement(
     forbidden: Option<&HashSet<PlacementKey>>,
     deadline: Deadline,
 ) -> Result<SearchOutcome> {
+    match search_placements(
+        mesh,
+        tray,
+        rotations,
+        occupied,
+        height_weight,
+        interlock_free,
+        forbidden,
+        1,
+        deadline,
+    )? {
+        SearchManyOutcome::Found(mut placements) => Ok(placements
+            .pop()
+            .map(SearchOutcome::Found)
+            .unwrap_or(SearchOutcome::NotFound)),
+        SearchManyOutcome::NotFound => Ok(SearchOutcome::NotFound),
+        SearchManyOutcome::TimedOut => Ok(SearchOutcome::TimedOut),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn search_placements(
+    mesh: &Mesh,
+    tray: Tray,
+    rotations: &[Rotation],
+    occupied: &[bool],
+    height_weight: f32,
+    interlock_free: bool,
+    forbidden: Option<&HashSet<PlacementKey>>,
+    limit: usize,
+    deadline: Deadline,
+) -> Result<SearchManyOutcome> {
     let distance = manhattan_distance_field(tray, occupied);
     if deadline.expired() {
-        return Ok(SearchOutcome::TimedOut);
+        return Ok(SearchManyOutcome::TimedOut);
     }
     let existing_fft = fft_of_bool_grid(tray, occupied);
     let distance_fft = fft_of_scalar_grid(tray, &distance);
-    let mut best: Option<Placement> = None;
+    let mut best = Vec::<Placement>::new();
 
     for (rotation_index, &rotation) in rotations.iter().enumerate() {
         if deadline.expired() {
-            return Ok(SearchOutcome::TimedOut);
+            return Ok(SearchManyOutcome::TimedOut);
         }
         let oriented = voxelize_mesh(mesh, rotation, tray.voxel)?;
         if oriented.voxel_count == 0 {
@@ -957,7 +1569,7 @@ fn search_placement(
         let max_z = tray.nz - oriented.nz;
         for z in 0..=max_z {
             if deadline.expired() {
-                return Ok(SearchOutcome::TimedOut);
+                return Ok(SearchManyOutcome::TimedOut);
             }
             let z_norm = if tray.nz > 1 {
                 z as f32 / (tray.nz - 1) as f32
@@ -985,26 +1597,36 @@ fn search_placement(
                     }
                     let fit_cost = proximity[grid_index] / oriented.voxel_count as f32;
                     let cost = fit_cost + height_cost;
-                    let should_replace = best
-                        .as_ref()
-                        .map(|current| cost < current.cost)
-                        .unwrap_or(true);
-                    if should_replace {
-                        best = Some(Placement {
+                    push_best_placement(
+                        &mut best,
+                        limit,
+                        Placement {
                             oriented: oriented.clone(),
                             rotation_index,
                             offset: (x, y, z),
                             cost,
-                        });
-                    }
+                        },
+                    );
                 }
             }
         }
     }
 
-    Ok(best
-        .map(SearchOutcome::Found)
-        .unwrap_or(SearchOutcome::NotFound))
+    if best.is_empty() {
+        Ok(SearchManyOutcome::NotFound)
+    } else {
+        best.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(Ordering::Equal));
+        Ok(SearchManyOutcome::Found(best))
+    }
+}
+
+fn push_best_placement(best: &mut Vec<Placement>, limit: usize, placement: Placement) {
+    if limit == 0 {
+        return;
+    }
+    best.push(placement);
+    best.sort_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap_or(Ordering::Equal));
+    best.truncate(limit);
 }
 
 fn stamp_cells(tray: Tray, occupied: &mut [bool], cells: &[(usize, usize, usize)]) {
@@ -2082,14 +2704,43 @@ fn rotation_set(count: usize) -> Vec<Rotation> {
             for sy in [-1, 1] {
                 for sz in [-1, 1] {
                     let signs = [sx, sy, sz];
-                    let mut m = [[0; 3]; 3];
+                    let mut m = [[0.0; 3]; 3];
                     for row in 0..3 {
-                        m[row][perm[row]] = signs[row];
+                        m[row][perm[row]] = signs[row] as f32;
                     }
                     let rotation = Rotation { m };
-                    if determinant(m) == 1 && !rotations.contains(&rotation) {
-                        rotations.push(rotation);
+                    if (determinant(m) - 1.0).abs() < 1.0e-5 {
+                        push_unique_rotation(&mut rotations, rotation);
                     }
+                }
+            }
+        }
+    }
+    if rotations.len() < count {
+        let angles = [
+            PI / 4.0,
+            -PI / 4.0,
+            PI / 6.0,
+            -PI / 6.0,
+            PI / 3.0,
+            -PI / 3.0,
+        ];
+        for angle in angles {
+            for euler in [
+                (angle, 0.0, 0.0),
+                (0.0, angle, 0.0),
+                (0.0, 0.0, angle),
+                (angle, angle, 0.0),
+                (angle, 0.0, angle),
+                (0.0, angle, angle),
+                (angle, angle, angle),
+            ] {
+                push_unique_rotation(
+                    &mut rotations,
+                    Rotation::from_euler(euler.0, euler.1, euler.2),
+                );
+                if rotations.len() >= count {
+                    return rotations;
                 }
             }
         }
@@ -2098,7 +2749,33 @@ fn rotation_set(count: usize) -> Vec<Rotation> {
     rotations
 }
 
-fn determinant(m: [[i32; 3]; 3]) -> i32 {
+fn push_unique_rotation(rotations: &mut Vec<Rotation>, rotation: Rotation) {
+    if !rotations
+        .iter()
+        .any(|existing| rotations_approx_eq(*existing, rotation))
+    {
+        rotations.push(rotation);
+    }
+}
+
+fn rotations_approx_eq(a: Rotation, b: Rotation) -> bool {
+    a.m.iter()
+        .flatten()
+        .zip(b.m.iter().flatten())
+        .all(|(a, b)| (*a - *b).abs() < 1.0e-5)
+}
+
+fn mat_mul(a: [[f32; 3]; 3], b: [[f32; 3]; 3]) -> [[f32; 3]; 3] {
+    let mut out = [[0.0; 3]; 3];
+    for row in 0..3 {
+        for col in 0..3 {
+            out[row][col] = (0..3).map(|k| a[row][k] * b[k][col]).sum();
+        }
+    }
+    out
+}
+
+fn determinant(m: [[f32; 3]; 3]) -> f32 {
     m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
         + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
@@ -2145,6 +2822,15 @@ fn print_summary(result: &PackResult, tray: Tray, out: &Path) {
             report.reinserted_objects,
             report.unresolved_groups
         );
+        if report.repack_passes > 0 || report.repack_attempted_groups > 0 {
+            println!(
+                "局所再パック: {}パス、{}グループ試行、{}回採用、{}個を追加配置",
+                report.repack_passes,
+                report.repack_attempted_groups,
+                report.repack_accepted,
+                report.repack_added_objects
+            );
+        }
     }
     if let Some(report) = &result.ray_report {
         if report.remaining_groups.is_empty() {
@@ -2285,7 +2971,10 @@ mod tests {
     fn generated_rotations_are_right_handed() {
         let rotations = rotation_set(24);
         assert_eq!(rotations.len(), 24);
-        assert!(rotations.iter().all(|r| determinant(r.m) == 1));
+        assert!(rotations
+            .iter()
+            .all(|r| (determinant(r.m) - 1.0).abs() < 1.0e-5));
+        assert!(rotation_set(32).len() > 24);
     }
 
     #[test]
@@ -2417,6 +3106,10 @@ mod tests {
             0.0,
             true,
             1,
+            1,
+            0,
+            8,
+            8,
             Deadline::from_seconds(Some(0.0)),
         )
         .unwrap();

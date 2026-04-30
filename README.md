@@ -99,11 +99,16 @@ cargo run -- pack samples/stl \
 | --- | ---: | --- |
 | `--width`, `--depth`, `--height` | `80`, `80`, `60` | 直方体トレイの寸法 |
 | `--voxel` | `2` | ボクセルの辺長。小さいほど高精度だが遅くなる |
-| `--rotations` | `24` | 試す90度刻みの右手系姿勢数 |
+| `--rotations` | `24` | 試す姿勢数。24までは90度刻み、24超では追加の角度姿勢も試す |
 | `--height-weight` | `10` | `p * q_z^3` 高さペナルティの係数 |
+| `--beam-width` | `1` | 複数の部分配置を残すbeam search幅。`1`なら従来の貪欲配置 |
 | `--refine-margin` | `0.05` | サブボクセルrefinement中の三角形AABBクリアランス |
 | `--post-opt-passes` | `4` | 取り外し・再挿入後処理の最大パス数 |
+| `--repack-passes` | `2` | 未配置物体を入れるための局所再パック最大パス数 |
+| `--repack-window` | `8` | 局所再パックで一度に外す配置済み物体数 |
+| `--repack-unpacked-limit` | `8` | 局所再パックで一度に試す未配置物体数 |
 | `--time-limit-seconds` | なし | 指定秒数を超えたら、その時点で配置済みの部分結果を出力して打ち切る |
+| `--no-repack` | off | 未配置物体向け局所再パックを無効化する |
 | `--no-post-opt` | off | 取り外し・再挿入後処理を無効化する |
 | `--no-refine` | off | 連続サブボクセルrefinementを無効化する |
 | `--no-interlock` | off | Flood-fill到達可能性フィルタを無効化する |
@@ -142,6 +147,7 @@ python3 scripts/validate_thingi10k_tight.py \
   --samples samples/thingi10k \
   --output target/thingi10k/benchmark_10x \
   --binary target/release/spectral-packing \
+  --beam-width 1 \
   --time-limit-seconds 60 \
   --single-attempt
 ```

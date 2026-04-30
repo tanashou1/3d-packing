@@ -42,6 +42,10 @@ def main() -> None:
     parser.add_argument("--case", action="append", choices=sorted(DEFAULT_CASES))
     parser.add_argument("--rotations", type=int, default=24)
     parser.add_argument("--height-weight", type=float, default=0.5)
+    parser.add_argument("--beam-width", type=int, default=1)
+    parser.add_argument("--repack-passes", type=int)
+    parser.add_argument("--repack-window", type=int)
+    parser.add_argument("--repack-unpacked-limit", type=int)
     parser.add_argument("--time-limit-seconds", type=float)
     parser.add_argument(
         "--single-attempt",
@@ -78,6 +82,10 @@ def main() -> None:
             config["footprint_fraction"],
             args.rotations,
             args.height_weight,
+            args.beam_width,
+            args.repack_passes,
+            args.repack_window,
+            args.repack_unpacked_limit,
             args.time_limit_seconds,
             args.single_attempt,
         )
@@ -107,6 +115,10 @@ def validate_case(
     footprint_fraction: float,
     rotations: int,
     height_weight: float,
+    beam_width: int,
+    repack_passes: int | None,
+    repack_window: int | None,
+    repack_unpacked_limit: int | None,
     time_limit_seconds: float | None,
     single_attempt: bool,
 ) -> dict:
@@ -140,7 +152,15 @@ def validate_case(
                 str(rotations),
                 "--height-weight",
                 f"{height_weight:.6g}",
+                "--beam-width",
+                str(beam_width),
             ]
+            if repack_passes is not None:
+                command.extend(["--repack-passes", str(repack_passes)])
+            if repack_window is not None:
+                command.extend(["--repack-window", str(repack_window)])
+            if repack_unpacked_limit is not None:
+                command.extend(["--repack-unpacked-limit", str(repack_unpacked_limit)])
             if time_limit_seconds is not None:
                 command.extend(["--time-limit-seconds", f"{time_limit_seconds:.6g}"])
             completed = subprocess.run(command, text=True, capture_output=True)
