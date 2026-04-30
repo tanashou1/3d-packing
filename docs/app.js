@@ -25,6 +25,7 @@ async function init() {
   buffers = {
     position: gl.createBuffer(),
     normal: gl.createBuffer(),
+    color: gl.createBuffer(),
   };
   installControls();
   const results = await fetch("assets/results.json").then((r) => r.json());
@@ -49,6 +50,7 @@ async function loadResult(result) {
     result.inputObjects ? ["入力物体数", result.inputObjects] : null,
     ["トレイ", result.tray],
     ["ボクセル", result.voxel],
+    result.gridVoxels !== undefined ? ["トレイボクセル数", result.gridVoxels] : null,
     ["ボクセル密度", `${result.voxelDensity}%`],
     ["メッシュ密度", `${result.meshDensity}%`],
     result.requiresStackingByBbox !== undefined
@@ -61,6 +63,7 @@ async function loadResult(result) {
     result.sumBboxVolume !== undefined ? ["bbox体積合計", result.sumBboxVolume] : null,
     result.trayVolume !== undefined ? ["トレイ体積", result.trayVolume] : null,
     ["ray分解判定", result.rayDisassembly],
+    result.note ? ["注記", result.note] : null,
     ["出典", result.source],
   ]
     .filter(Boolean)
@@ -84,22 +87,33 @@ async function loadResult(result) {
     const attribution = await fetch(result.attribution).then((r) => r.json());
     attributionEl.textContent = JSON.stringify(attribution, null, 2);
   }
-  statusEl.textContent = `${result.title}: ${mesh.triangles}三角形`;
+  statusEl.textContent = `${result.title}: ${mesh.triangles}三角形 / ${mesh.objects}物体`;
 }
 
 function parseAsciiStl(text) {
   const positions = [];
   const normals = [];
+  const colors = [];
   const vertices = [];
   let currentNormal = [0, 0, 1];
+  let currentColor = paletteColor(0);
+  let objectCount = 0;
+  let seenFacetInSolid = false;
   let min = [Infinity, Infinity, Infinity];
   let max = [-Infinity, -Infinity, -Infinity];
 
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     const parts = line.split(/\s+/);
-    if (parts[0] === "facet" && parts[1] === "normal") {
+    if (parts[0] === "solid") {
+      if (objectCount === 0 || seenFacetInSolid) {
+        currentColor = paletteColor(objectCount);
+        objectCount += 1;
+        seenFacetInSolid = false;
+      }
+    } else if (parts[0] === "facet" && parts[1] === "normal") {
       currentNormal = parts.slice(2, 5).map(Number);
+      seenFacetInSolid = true;
     } else if (parts[0] === "vertex") {
       const vertex = parts.slice(1, 4).map(Number);
       vertices.push(vertex);
@@ -109,6 +123,7 @@ function parseAsciiStl(text) {
       }
       positions.push(...vertex);
       normals.push(...currentNormal);
+      colors.push(...currentColor);
     }
   }
 
@@ -131,7 +146,9 @@ function parseAsciiStl(text) {
   return {
     positions: new Float32Array(positions),
     normals: new Float32Array(normals),
+    colors: new Float32Array(colors),
     triangles: vertices.length / 3,
+    objects: objectCount || 1,
   };
 }
 
@@ -141,6 +158,8 @@ function uploadMesh(mesh) {
   gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.STATIC_DRAW);
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
   gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
+  gl.bufferData(gl.ARRAY_BUFFER, mesh.colors, gl.STATIC_DRAW);
 }
 
 function draw() {
@@ -164,6 +183,7 @@ function draw() {
 
   bindAttribute("aPosition", buffers.position);
   bindAttribute("aNormal", buffers.normal);
+  bindAttribute("aColor", buffers.color);
   gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
   requestAnimationFrame(draw);
 }
@@ -172,13 +192,16 @@ function createProgram() {
   const vertexSource = `
     attribute vec3 aPosition;
     attribute vec3 aNormal;
+    attribute vec3 aColor;
     uniform mat4 uMvp;
     uniform mat4 uModel;
     varying vec3 vNormal;
     varying vec3 vPosition;
+    varying vec3 vColor;
     void main() {
       vNormal = mat3(uModel) * aNormal;
       vPosition = (uModel * vec4(aPosition, 1.0)).xyz;
+      vColor = aColor;
       gl_Position = uMvp * vec4(aPosition, 1.0);
     }
   `;
@@ -186,12 +209,13 @@ function createProgram() {
     precision mediump float;
     varying vec3 vNormal;
     varying vec3 vPosition;
+    varying vec3 vColor;
     uniform vec3 uLight;
     void main() {
       vec3 normal = normalize(vNormal);
       float diffuse = max(dot(normal, normalize(uLight)), 0.0);
       float rim = pow(1.0 - max(dot(normal, normalize(-vPosition)), 0.0), 2.0);
-      vec3 base = vec3(0.18, 0.64, 0.90);
+      vec3 base = vColor;
       vec3 color = base * (0.25 + 0.75 * diffuse) + vec3(0.55, 0.85, 1.0) * rim * 0.3;
       gl_FragColor = vec4(color, 1.0);
     }
@@ -227,6 +251,31 @@ function bindAttribute(name, buffer) {
 
 function setMatrix(name, matrix) {
   gl.uniformMatrix4fv(gl.getUniformLocation(program, name), false, new Float32Array(matrix));
+}
+
+function paletteColor(index) {
+  const hue = (index * 0.61803398875) % 1;
+  return hslToRgb(hue, 0.68, 0.58);
+}
+
+function hslToRgb(h, s, l) {
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [
+    hueToRgb(p, q, h + 1 / 3),
+    hueToRgb(p, q, h),
+    hueToRgb(p, q, h - 1 / 3),
+  ];
+}
+
+function hueToRgb(p, q, t) {
+  let value = t;
+  if (value < 0) value += 1;
+  if (value > 1) value -= 1;
+  if (value < 1 / 6) return p + (q - p) * 6 * value;
+  if (value < 1 / 2) return q;
+  if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6;
+  return p;
 }
 
 function resizeCanvas() {

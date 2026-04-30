@@ -2518,13 +2518,13 @@ fn write_combined_stl(path: &Path, placed: &[PlacedMesh]) -> Result<()> {
         }
     }
     let mut file = File::create(path)?;
-    writeln!(file, "solid spectral_packing")?;
     for object in placed {
+        writeln!(file, "solid {}", object.name)?;
         for tri in &object.triangles {
             write_facet(&mut file, tri)?;
         }
+        writeln!(file, "endsolid {}", object.name)?;
     }
-    writeln!(file, "endsolid spectral_packing")?;
     Ok(())
 }
 
