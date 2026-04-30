@@ -101,7 +101,10 @@ cargo run -- pack samples/stl \
 | `--voxel` | `2` | ボクセルの辺長。小さいほど高精度だが遅くなる |
 | `--rotations` | `24` | 試す姿勢数。24までは90度刻み、24超では追加の角度姿勢も試す |
 | `--height-weight` | `10` | `p * q_z^3` 高さペナルティの係数 |
+| `--strategy` | `spectral` | `spectral` はFFT全候補評価、`order-bl` は積み込み順探索とBL前線候補で配置 |
 | `--beam-width` | `1` | 複数の部分配置を残すbeam search幅。`1`なら従来の貪欲配置 |
+| `--order-window` | `12` | `order-bl` で次に積む候補として見る未配置物体数 |
+| `--bl-candidate-limit` | `256` | `order-bl` で評価するBL前線候補の上限 |
 | `--refine-margin` | `0.05` | サブボクセルrefinement中の三角形AABBクリアランス |
 | `--post-opt-passes` | `4` | 取り外し・再挿入後処理の最大パス数 |
 | `--repack-passes` | `2` | 未配置物体を入れるための局所再パック最大パス数 |

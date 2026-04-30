@@ -43,6 +43,9 @@ def main() -> None:
     parser.add_argument("--rotations", type=int, default=24)
     parser.add_argument("--height-weight", type=float, default=0.5)
     parser.add_argument("--beam-width", type=int, default=1)
+    parser.add_argument("--strategy", choices=["spectral", "order-bl"], default="spectral")
+    parser.add_argument("--order-window", type=int)
+    parser.add_argument("--bl-candidate-limit", type=int)
     parser.add_argument("--repack-passes", type=int)
     parser.add_argument("--repack-window", type=int)
     parser.add_argument("--repack-unpacked-limit", type=int)
@@ -83,6 +86,9 @@ def main() -> None:
             args.rotations,
             args.height_weight,
             args.beam_width,
+            args.strategy,
+            args.order_window,
+            args.bl_candidate_limit,
             args.repack_passes,
             args.repack_window,
             args.repack_unpacked_limit,
@@ -116,6 +122,9 @@ def validate_case(
     rotations: int,
     height_weight: float,
     beam_width: int,
+    strategy: str,
+    order_window: int | None,
+    bl_candidate_limit: int | None,
     repack_passes: int | None,
     repack_window: int | None,
     repack_unpacked_limit: int | None,
@@ -154,7 +163,13 @@ def validate_case(
                 f"{height_weight:.6g}",
                 "--beam-width",
                 str(beam_width),
+                "--strategy",
+                strategy,
             ]
+            if order_window is not None:
+                command.extend(["--order-window", str(order_window)])
+            if bl_candidate_limit is not None:
+                command.extend(["--bl-candidate-limit", str(bl_candidate_limit)])
             if repack_passes is not None:
                 command.extend(["--repack-passes", str(repack_passes)])
             if repack_window is not None:

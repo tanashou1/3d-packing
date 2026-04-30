@@ -29,6 +29,9 @@ enum Command {
         no_ray_disassembly: bool,
         post_opt_passes: usize,
         beam_width: usize,
+        strategy: PlacementStrategy,
+        order_window: usize,
+        bl_candidate_limit: usize,
         repack_passes: usize,
         repack_window: usize,
         repack_unpacked_limit: usize,
@@ -163,7 +166,9 @@ impl Rotation {
 struct OrientedMesh {
     name: String,
     triangles: Vec<[Vec3; 3]>,
+    #[allow(dead_code)]
     occupied: Vec<bool>,
+    cells: Vec<(usize, usize, usize)>,
     nx: usize,
     ny: usize,
     nz: usize,
@@ -248,6 +253,9 @@ fn main() -> Result<()> {
             no_ray_disassembly,
             post_opt_passes,
             beam_width,
+            strategy,
+            order_window,
+            bl_candidate_limit,
             repack_passes,
             repack_window,
             repack_unpacked_limit,
@@ -284,6 +292,9 @@ fn main() -> Result<()> {
                     post_opt_passes
                 },
                 beam_width.max(1),
+                strategy,
+                order_window.max(1),
+                bl_candidate_limit.max(1),
                 repack_passes,
                 repack_window.max(1),
                 repack_unpacked_limit.max(1),
@@ -329,6 +340,9 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
     let mut no_ray_disassembly = false;
     let mut post_opt_passes = 4;
     let mut beam_width = 1;
+    let mut strategy = PlacementStrategy::Spectral;
+    let mut order_window = 12;
+    let mut bl_candidate_limit = 256;
     let mut repack_passes = 2;
     let mut repack_window = 8;
     let mut repack_unpacked_limit = 8;
@@ -380,6 +394,18 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
                 i += 1;
                 beam_width = parse_value(&args, i, "--beam-width")?;
             }
+            "--strategy" | "--placement-strategy" => {
+                i += 1;
+                strategy = PlacementStrategy::parse(&required_arg(&args, i, "--strategy")?)?;
+            }
+            "--order-window" => {
+                i += 1;
+                order_window = parse_value(&args, i, "--order-window")?;
+            }
+            "--bl-candidate-limit" => {
+                i += 1;
+                bl_candidate_limit = parse_value(&args, i, "--bl-candidate-limit")?;
+            }
             "--no-repack" => repack_passes = 0,
             "--repack-passes" => {
                 i += 1;
@@ -424,6 +450,9 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
         no_ray_disassembly,
         post_opt_passes,
         beam_width,
+        strategy,
+        order_window,
+        bl_candidate_limit,
         repack_passes,
         repack_window,
         repack_unpacked_limit,
@@ -464,7 +493,7 @@ where
 }
 
 fn usage() -> &'static str {
-    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す姿勢数。24超で追加角度姿勢も試す（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --beam-width N          残す部分配置候補数（既定値: 1）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --repack-passes N       未配置物体向け局所再パックの最大パス数（既定値: 2）\n      --repack-window N       局所再パックで一度に外す配置済み物体数（既定値: 8）\n      --repack-unpacked-limit N 局所再パックで一度に試す未配置物体数（既定値: 8）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-repack             未配置物体向け局所再パックを無効化\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
+    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す姿勢数。24超で追加角度姿勢も試す（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --strategy NAME         spectral または order-bl（既定値: spectral）\n      --beam-width N          残す部分配置候補数（既定値: 1）\n      --order-window N        order-blで次物体候補として見る未配置物体数（既定値: 12）\n      --bl-candidate-limit N  order-blで評価するBL前線候補数（既定値: 256）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --repack-passes N       未配置物体向け局所再パックの最大パス数（既定値: 2）\n      --repack-window N       局所再パックで一度に外す配置済み物体数（既定値: 8）\n      --repack-unpacked-limit N 局所再パックで一度に試す未配置物体数（既定値: 8）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-repack             未配置物体向け局所再パックを無効化\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
 }
 
 struct PackResult {
@@ -507,6 +536,31 @@ struct BeamState {
     unpacked_indices: Vec<usize>,
     cost: f32,
     greedy_baseline: bool,
+}
+
+#[derive(Clone)]
+struct OrderState {
+    placed: Vec<PlacedMesh>,
+    occupied: Vec<bool>,
+    remaining_indices: Vec<usize>,
+    unpacked_indices: Vec<usize>,
+    cost: f32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PlacementStrategy {
+    Spectral,
+    OrderBl,
+}
+
+impl PlacementStrategy {
+    fn parse(value: &str) -> Result<Self> {
+        match value {
+            "spectral" => Ok(Self::Spectral),
+            "order-bl" | "bl-order" => Ok(Self::OrderBl),
+            _ => bail!("--strategy は spectral または order-bl を指定してください: `{value}`"),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -558,6 +612,9 @@ fn pack_meshes(
     ray_disassembly: bool,
     post_opt_passes: usize,
     beam_width: usize,
+    strategy: PlacementStrategy,
+    order_window: usize,
+    bl_candidate_limit: usize,
     repack_passes: usize,
     repack_window: usize,
     repack_unpacked_limit: usize,
@@ -568,55 +625,80 @@ fn pack_meshes(
     let mut unpacked_indices = Vec::new();
     let mut timed_out = false;
 
-    if beam_width <= 1 {
-        for (source_index, mesh) in meshes.iter().enumerate() {
-            if deadline.expired() {
-                timed_out = true;
-                break;
+    match strategy {
+        PlacementStrategy::Spectral if beam_width <= 1 => {
+            for (source_index, mesh) in meshes.iter().enumerate() {
+                if deadline.expired() {
+                    timed_out = true;
+                    break;
+                }
+                match place_mesh(
+                    mesh,
+                    source_index,
+                    tray,
+                    rotations,
+                    &mut occupied,
+                    &placed,
+                    height_weight,
+                    interlock_free,
+                    refine,
+                    refine_margin,
+                    None,
+                    true,
+                    deadline,
+                )? {
+                    PlaceOutcome::Placed(placed_mesh) => placed.push(placed_mesh),
+                    PlaceOutcome::NotFound => {
+                        eprintln!("  パックできませんでした");
+                        unpacked_indices.push(source_index);
+                    }
+                    PlaceOutcome::TimedOut => {
+                        timed_out = true;
+                        break;
+                    }
+                }
             }
-            match place_mesh(
-                mesh,
-                source_index,
+        }
+        PlacementStrategy::Spectral => {
+            match pack_meshes_beam(
+                meshes,
                 tray,
                 rotations,
-                &mut occupied,
-                &placed,
                 height_weight,
                 interlock_free,
                 refine,
                 refine_margin,
-                None,
-                true,
+                beam_width,
                 deadline,
             )? {
-                PlaceOutcome::Placed(placed_mesh) => placed.push(placed_mesh),
-                PlaceOutcome::NotFound => {
-                    eprintln!("  パックできませんでした");
-                    unpacked_indices.push(source_index);
+                Some(state) => {
+                    placed = state.placed;
+                    unpacked_indices = state.unpacked_indices;
                 }
-                PlaceOutcome::TimedOut => {
-                    timed_out = true;
-                    break;
-                }
+                None => timed_out = true,
             }
         }
-    } else {
-        match pack_meshes_beam(
-            meshes,
-            tray,
-            rotations,
-            height_weight,
-            interlock_free,
-            refine,
-            refine_margin,
-            beam_width,
-            deadline,
-        )? {
-            Some(state) => {
-                placed = state.placed;
-                unpacked_indices = state.unpacked_indices;
+        PlacementStrategy::OrderBl => {
+            match pack_meshes_order_bl(
+                meshes,
+                tray,
+                rotations,
+                height_weight,
+                interlock_free,
+                refine,
+                refine_margin,
+                beam_width,
+                order_window,
+                bl_candidate_limit,
+                deadline,
+            )? {
+                (Some(state), order_timed_out) => {
+                    placed = state.placed;
+                    unpacked_indices = state.unpacked_indices;
+                    timed_out = order_timed_out;
+                }
+                (None, order_timed_out) => timed_out = order_timed_out,
             }
-            None => timed_out = true,
         }
     }
 
@@ -999,6 +1081,174 @@ fn compare_beam_states(a: &BeamState, b: &BeamState) -> Ordering {
                 .unwrap_or(Ordering::Equal)
         })
         .then_with(|| a.cost.partial_cmp(&b.cost).unwrap_or(Ordering::Equal))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pack_meshes_order_bl(
+    meshes: &[Mesh],
+    tray: Tray,
+    rotations: &[Rotation],
+    height_weight: f32,
+    interlock_free: bool,
+    refine: bool,
+    refine_margin: f32,
+    beam_width: usize,
+    order_window: usize,
+    bl_candidate_limit: usize,
+    deadline: Deadline,
+) -> Result<(Option<BeamState>, bool)> {
+    let mut states = vec![OrderState {
+        placed: Vec::new(),
+        occupied: vec![false; tray.len()],
+        remaining_indices: (0..meshes.len()).collect(),
+        unpacked_indices: Vec::new(),
+        cost: 0.0,
+    }];
+    let mut oriented_cache = vec![None; meshes.len()];
+
+    while states
+        .iter()
+        .any(|state| !state.remaining_indices.is_empty())
+    {
+        if deadline.expired() {
+            return Ok((best_order_state(states.clone()), true));
+        }
+        let mut next_states = Vec::new();
+        for state in &states {
+            if state.remaining_indices.is_empty() {
+                next_states.push(state.clone());
+                continue;
+            }
+            let candidate_indices = state
+                .remaining_indices
+                .iter()
+                .copied()
+                .take(order_window)
+                .collect::<Vec<_>>();
+            for source_index in candidate_indices {
+                let mesh = &meshes[source_index];
+                if oriented_cache[source_index].is_none() {
+                    let Some(oriented_meshes) =
+                        build_oriented_meshes(mesh, rotations, tray.voxel, deadline)?
+                    else {
+                        return Ok((best_order_state(states.clone()), true));
+                    };
+                    oriented_cache[source_index] = Some(oriented_meshes);
+                }
+                let oriented_meshes = oriented_cache[source_index].as_ref().expect("cached");
+                let placement = match search_bl_placements(
+                    oriented_meshes,
+                    tray,
+                    &state.occupied,
+                    height_weight,
+                    interlock_free,
+                    bl_candidate_limit,
+                    1,
+                    deadline,
+                )? {
+                    SearchManyOutcome::Found(mut placements) => placements.pop(),
+                    SearchManyOutcome::NotFound => None,
+                    SearchManyOutcome::TimedOut => {
+                        return Ok((best_order_state(states.clone()), true));
+                    }
+                };
+                let Some(placement) = placement else {
+                    continue;
+                };
+                let mut occupied = state.occupied.clone();
+                let outcome = place_with_candidate(
+                    mesh,
+                    source_index,
+                    tray,
+                    &mut occupied,
+                    &state.placed,
+                    refine,
+                    refine_margin,
+                    false,
+                    deadline,
+                    placement.clone(),
+                )?;
+                match outcome {
+                    PlaceOutcome::Placed(placed_mesh) => {
+                        let mut placed = state.placed.clone();
+                        placed.push(placed_mesh);
+                        let mut remaining_indices = state.remaining_indices.clone();
+                        if let Some(position) = remaining_indices
+                            .iter()
+                            .position(|&index| index == source_index)
+                        {
+                            remaining_indices.remove(position);
+                        }
+                        next_states.push(OrderState {
+                            placed,
+                            occupied,
+                            remaining_indices,
+                            unpacked_indices: state.unpacked_indices.clone(),
+                            cost: state.cost + placement.cost,
+                        });
+                    }
+                    PlaceOutcome::NotFound => {}
+                    PlaceOutcome::TimedOut => return Ok((best_order_state(states.clone()), true)),
+                }
+            }
+
+            let mut remaining_indices = state.remaining_indices.clone();
+            let skipped_index = remaining_indices.remove(0);
+            let mut unpacked_indices = state.unpacked_indices.clone();
+            unpacked_indices.push(skipped_index);
+            next_states.push(OrderState {
+                placed: state.placed.clone(),
+                occupied: state.occupied.clone(),
+                remaining_indices,
+                unpacked_indices,
+                cost: state.cost + 1.0e6,
+            });
+        }
+
+        next_states.sort_by(compare_order_states);
+        next_states.truncate(beam_width);
+        if let Some(best) = next_states.first() {
+            eprintln!(
+                "order-bl最良: 配置{}個、残り{}個、未配置{}個",
+                best.placed.len(),
+                best.remaining_indices.len(),
+                best.unpacked_indices.len()
+            );
+        }
+        states = next_states;
+    }
+
+    states.sort_by(compare_order_states);
+    Ok((states.into_iter().next().map(order_state_to_beam), false))
+}
+
+fn compare_order_states(a: &OrderState, b: &OrderState) -> Ordering {
+    b.placed
+        .len()
+        .cmp(&a.placed.len())
+        .then_with(|| a.unpacked_indices.len().cmp(&b.unpacked_indices.len()))
+        .then_with(|| {
+            placed_mesh_volume(&b.placed)
+                .partial_cmp(&placed_mesh_volume(&a.placed))
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| a.cost.partial_cmp(&b.cost).unwrap_or(Ordering::Equal))
+}
+
+fn best_order_state(mut states: Vec<OrderState>) -> Option<BeamState> {
+    states.sort_by(compare_order_states);
+    states.into_iter().next().map(order_state_to_beam)
+}
+
+fn order_state_to_beam(mut state: OrderState) -> BeamState {
+    state.unpacked_indices.extend(state.remaining_indices);
+    BeamState {
+        placed: state.placed,
+        occupied: state.occupied,
+        unpacked_indices: state.unpacked_indices,
+        cost: state.cost,
+        greedy_baseline: false,
+    }
 }
 
 fn optimize_disassembly(
@@ -1704,6 +1954,214 @@ fn compare_placements_by_cost(a: &Placement, b: &Placement) -> Ordering {
         .then_with(|| a.offset.0.cmp(&b.offset.0))
 }
 
+#[allow(clippy::too_many_arguments)]
+fn search_bl_placements(
+    oriented_meshes: &[Option<OrientedMesh>],
+    tray: Tray,
+    occupied: &[bool],
+    height_weight: f32,
+    interlock_free: bool,
+    candidate_limit: usize,
+    limit: usize,
+    deadline: Deadline,
+) -> Result<SearchManyOutcome> {
+    let timed_out = AtomicBool::new(false);
+    let per_rotation = oriented_meshes
+        .par_iter()
+        .enumerate()
+        .map(|(rotation_index, oriented)| -> Vec<Placement> {
+            let Some(oriented) = oriented else {
+                return Vec::new();
+            };
+            if deadline.expired() {
+                timed_out.store(true, AtomicOrdering::Relaxed);
+                return Vec::new();
+            }
+            if oriented.nx > tray.nx || oriented.ny > tray.ny || oriented.nz > tray.nz {
+                return Vec::new();
+            }
+            let mut best = Vec::new();
+            for offset in bl_candidate_offsets(tray, occupied, oriented, candidate_limit) {
+                if deadline.expired() {
+                    timed_out.store(true, AtomicOrdering::Relaxed);
+                    break;
+                }
+                if !can_place_voxels(tray, occupied, oriented, offset) {
+                    continue;
+                }
+                if interlock_free && !linear_axis_reachable(tray, occupied, oriented, offset) {
+                    continue;
+                }
+                let z_norm = if tray.nz > 1 {
+                    offset.2 as f32 / (tray.nz - 1) as f32
+                } else {
+                    0.0
+                };
+                let y_norm = if tray.ny > 1 {
+                    offset.1 as f32 / (tray.ny - 1) as f32
+                } else {
+                    0.0
+                };
+                let x_norm = if tray.nx > 1 {
+                    offset.0 as f32 / (tray.nx - 1) as f32
+                } else {
+                    0.0
+                };
+                let cost = height_weight * z_norm.powi(3) + z_norm + y_norm * 0.1 + x_norm * 0.01;
+                push_best_placement(
+                    &mut best,
+                    limit,
+                    Placement {
+                        oriented: oriented.clone(),
+                        rotation_index,
+                        offset,
+                        cost,
+                    },
+                );
+            }
+            best
+        })
+        .collect::<Vec<_>>();
+
+    if timed_out.load(AtomicOrdering::Relaxed) || deadline.expired() {
+        return Ok(SearchManyOutcome::TimedOut);
+    }
+
+    let mut best = Vec::new();
+    for placements in per_rotation {
+        for placement in placements {
+            push_best_placement(&mut best, limit, placement);
+        }
+    }
+    if best.is_empty() {
+        Ok(SearchManyOutcome::NotFound)
+    } else {
+        best.sort_by(|a, b| compare_placements_by_cost(b, a));
+        Ok(SearchManyOutcome::Found(best))
+    }
+}
+
+fn bl_candidate_offsets(
+    tray: Tray,
+    occupied: &[bool],
+    object: &OrientedMesh,
+    candidate_limit: usize,
+) -> Vec<(usize, usize, usize)> {
+    let max_x = tray.nx - object.nx;
+    let max_y = tray.ny - object.ny;
+    let max_z = tray.nz - object.nz;
+    let mut raw = HashSet::new();
+    raw.insert((0, 0, 0));
+
+    for z in 0..tray.nz {
+        for y in 0..tray.ny {
+            for x in 0..tray.nx {
+                if !occupied[idx(x, y, z, tray.nx, tray.ny)] {
+                    continue;
+                }
+                if x < max_x {
+                    raw.insert((x + 1, y.min(max_y), z.min(max_z)));
+                }
+                if y < max_y {
+                    raw.insert((x.min(max_x), y + 1, z.min(max_z)));
+                }
+                if z < max_z {
+                    raw.insert((x.min(max_x), y.min(max_y), z + 1));
+                }
+            }
+        }
+    }
+
+    let mut settled = HashSet::new();
+    for offset in raw {
+        if let Some(offset) = settle_bl_offset(tray, occupied, object, offset) {
+            settled.insert(offset);
+        }
+    }
+    let mut candidates = settled.into_iter().collect::<Vec<_>>();
+    candidates.sort_by(compare_offsets_bl);
+    candidates.truncate(candidate_limit);
+    candidates
+}
+
+fn compare_offsets_bl(a: &(usize, usize, usize), b: &(usize, usize, usize)) -> Ordering {
+    a.2.cmp(&b.2)
+        .then_with(|| a.1.cmp(&b.1))
+        .then_with(|| a.0.cmp(&b.0))
+}
+
+fn settle_bl_offset(
+    tray: Tray,
+    occupied: &[bool],
+    object: &OrientedMesh,
+    mut offset: (usize, usize, usize),
+) -> Option<(usize, usize, usize)> {
+    if !can_place_voxels(tray, occupied, object, offset) {
+        return None;
+    }
+    loop {
+        let mut moved = false;
+        while offset.2 > 0
+            && can_place_voxels(tray, occupied, object, (offset.0, offset.1, offset.2 - 1))
+        {
+            offset.2 -= 1;
+            moved = true;
+        }
+        while offset.1 > 0
+            && can_place_voxels(tray, occupied, object, (offset.0, offset.1 - 1, offset.2))
+        {
+            offset.1 -= 1;
+            moved = true;
+        }
+        while offset.0 > 0
+            && can_place_voxels(tray, occupied, object, (offset.0 - 1, offset.1, offset.2))
+        {
+            offset.0 -= 1;
+            moved = true;
+        }
+        if !moved {
+            return Some(offset);
+        }
+    }
+}
+
+fn can_place_voxels(
+    tray: Tray,
+    occupied: &[bool],
+    object: &OrientedMesh,
+    offset: (usize, usize, usize),
+) -> bool {
+    if offset.0 + object.nx > tray.nx
+        || offset.1 + object.ny > tray.ny
+        || offset.2 + object.nz > tray.nz
+    {
+        return false;
+    }
+    object.cells.iter().all(|&(x, y, z)| {
+        !occupied[idx(offset.0 + x, offset.1 + y, offset.2 + z, tray.nx, tray.ny)]
+    })
+}
+
+fn linear_axis_reachable(
+    tray: Tray,
+    occupied: &[bool],
+    object: &OrientedMesh,
+    offset: (usize, usize, usize),
+) -> bool {
+    let max_x = tray.nx - object.nx;
+    let max_y = tray.ny - object.ny;
+    let max_z = tray.nz - object.nz;
+    (0..=offset.0).all(|x| can_place_voxels(tray, occupied, object, (x, offset.1, offset.2)))
+        || (offset.0..=max_x)
+            .all(|x| can_place_voxels(tray, occupied, object, (x, offset.1, offset.2)))
+        || (0..=offset.1).all(|y| can_place_voxels(tray, occupied, object, (offset.0, y, offset.2)))
+        || (offset.1..=max_y)
+            .all(|y| can_place_voxels(tray, occupied, object, (offset.0, y, offset.2)))
+        || (0..=offset.2).all(|z| can_place_voxels(tray, occupied, object, (offset.0, offset.1, z)))
+        || (offset.2..=max_z)
+            .all(|z| can_place_voxels(tray, occupied, object, (offset.0, offset.1, z)))
+}
+
 fn push_best_placement(best: &mut Vec<Placement>, limit: usize, placement: Placement) {
     if limit == 0 {
         return;
@@ -1726,34 +2184,27 @@ fn occupied_cells_for_translation(
 ) -> Vec<(usize, usize, usize)> {
     let mut marked = vec![false; tray.len()];
     let mut cells = Vec::new();
-    for z in 0..object.nz {
-        for y in 0..object.ny {
-            for x in 0..object.nx {
-                if !object.occupied[idx(x, y, z, object.nx, object.ny)] {
-                    continue;
-                }
-                let min = translation
-                    + Vec3::new(
-                        x as f32 * tray.voxel,
-                        y as f32 * tray.voxel,
-                        z as f32 * tray.voxel,
-                    );
-                let max = min + Vec3::new(tray.voxel, tray.voxel, tray.voxel);
-                let x0 = voxel_floor(min.x, tray.voxel, tray.nx);
-                let y0 = voxel_floor(min.y, tray.voxel, tray.ny);
-                let z0 = voxel_floor(min.z, tray.voxel, tray.nz);
-                let x1 = voxel_ceil_exclusive(max.x, tray.voxel, tray.nx);
-                let y1 = voxel_ceil_exclusive(max.y, tray.voxel, tray.ny);
-                let z1 = voxel_ceil_exclusive(max.z, tray.voxel, tray.nz);
-                for gz in z0..z1 {
-                    for gy in y0..y1 {
-                        for gx in x0..x1 {
-                            let grid_index = idx(gx, gy, gz, tray.nx, tray.ny);
-                            if !marked[grid_index] {
-                                marked[grid_index] = true;
-                                cells.push((gx, gy, gz));
-                            }
-                        }
+    for &(x, y, z) in &object.cells {
+        let min = translation
+            + Vec3::new(
+                x as f32 * tray.voxel,
+                y as f32 * tray.voxel,
+                z as f32 * tray.voxel,
+            );
+        let max = min + Vec3::new(tray.voxel, tray.voxel, tray.voxel);
+        let x0 = voxel_floor(min.x, tray.voxel, tray.nx);
+        let y0 = voxel_floor(min.y, tray.voxel, tray.ny);
+        let z0 = voxel_floor(min.z, tray.voxel, tray.nz);
+        let x1 = voxel_ceil_exclusive(max.x, tray.voxel, tray.nx);
+        let y1 = voxel_ceil_exclusive(max.y, tray.voxel, tray.ny);
+        let z1 = voxel_ceil_exclusive(max.z, tray.voxel, tray.nz);
+        for gz in z0..z1 {
+            for gy in y0..y1 {
+                for gx in x0..x1 {
+                    let grid_index = idx(gx, gy, gz, tray.nx, tray.ny);
+                    if !marked[grid_index] {
+                        marked[grid_index] = true;
+                        cells.push((gx, gy, gz));
                     }
                 }
             }
@@ -2222,14 +2673,8 @@ fn fft_of_scalar_grid(tray: Tray, grid: &[f32]) -> Vec<Complex32> {
 
 fn fft_of_object(tray: Tray, object: &OrientedMesh) -> Vec<Complex32> {
     let mut data = vec![Complex32::new(0.0, 0.0); tray.len()];
-    for z in 0..object.nz {
-        for y in 0..object.ny {
-            for x in 0..object.nx {
-                if object.occupied[idx(x, y, z, object.nx, object.ny)] {
-                    data[idx(x, y, z, tray.nx, tray.ny)] = Complex32::new(1.0, 0.0);
-                }
-            }
-        }
+    for &(x, y, z) in &object.cells {
+        data[idx(x, y, z, tray.nx, tray.ny)] = Complex32::new(1.0, 0.0);
     }
     fft3(&mut data, tray.nx, tray.ny, tray.nz, false);
     data
@@ -2339,16 +2784,37 @@ fn voxelize_mesh(mesh: &Mesh, rotation: Rotation, voxel: f32) -> Result<Oriented
         mark_intersecting_voxels(*tri, voxel, nx, ny, nz, &mut surface);
     }
     let occupied = fill_interior(&surface, nx, ny, nz);
-    let voxel_count = occupied.iter().filter(|&&v| v).count();
+    let cells = occupied_cells_local(&occupied, nx, ny, nz);
+    let voxel_count = cells.len();
     Ok(OrientedMesh {
         name: mesh.name.clone(),
         triangles: local,
         occupied,
+        cells,
         nx,
         ny,
         nz,
         voxel_count,
     })
+}
+
+fn occupied_cells_local(
+    occupied: &[bool],
+    nx: usize,
+    ny: usize,
+    nz: usize,
+) -> Vec<(usize, usize, usize)> {
+    let mut cells = Vec::new();
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                if occupied[idx(x, y, z, nx, ny)] {
+                    cells.push((x, y, z));
+                }
+            }
+        }
+    }
+    cells
 }
 
 fn mark_intersecting_voxels(
@@ -3002,6 +3468,7 @@ mod tests {
             name: "test".to_string(),
             triangles: Vec::new(),
             occupied: vec![true, true, false, false],
+            cells: vec![(0, 0, 0), (1, 0, 0)],
             nx: 2,
             ny: 1,
             nz: 2,
@@ -3191,6 +3658,9 @@ mod tests {
             true,
             1,
             1,
+            PlacementStrategy::Spectral,
+            12,
+            256,
             0,
             8,
             8,
