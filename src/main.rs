@@ -5,9 +5,11 @@ use std::f32::consts::PI;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Context, Result};
+use rayon::prelude::*;
 use rustfft::num_complex::Complex32;
 use rustfft::FftPlanner;
 
@@ -820,21 +822,24 @@ fn pack_meshes_beam(
         greedy_baseline: true,
     }];
     let baseline_rotation_count = rotations.len().min(24);
-    let baseline_rotations = &rotations[..baseline_rotation_count];
 
     for (source_index, mesh) in meshes.iter().enumerate() {
         if deadline.expired() {
             return Ok(None);
         }
+        let Some(oriented_meshes) = build_oriented_meshes(mesh, rotations, tray.voxel, deadline)?
+        else {
+            return Ok(None);
+        };
+        let baseline_oriented_meshes = &oriented_meshes[..baseline_rotation_count];
         eprintln!("{} を配置中... beam候補{}個", mesh.name, states.len());
         let mut next_states = Vec::new();
         for state in &states {
             let mut greedy_forbidden = HashSet::new();
             if state.greedy_baseline {
-                match search_placements(
-                    mesh,
+                match search_placements_from_oriented(
+                    baseline_oriented_meshes,
                     tray,
-                    baseline_rotations,
                     &state.occupied,
                     height_weight,
                     interlock_free,
@@ -895,10 +900,9 @@ fn pack_meshes_beam(
                 }
             }
 
-            match search_placements(
-                mesh,
+            match search_placements_from_oriented(
+                &oriented_meshes,
                 tray,
-                rotations,
                 &state.occupied,
                 height_weight,
                 interlock_free,
@@ -1535,89 +1539,169 @@ fn search_placements(
     limit: usize,
     deadline: Deadline,
 ) -> Result<SearchManyOutcome> {
+    let Some(oriented_meshes) = build_oriented_meshes(mesh, rotations, tray.voxel, deadline)?
+    else {
+        return Ok(SearchManyOutcome::TimedOut);
+    };
+    search_placements_from_oriented(
+        &oriented_meshes,
+        tray,
+        occupied,
+        height_weight,
+        interlock_free,
+        forbidden,
+        limit,
+        deadline,
+    )
+}
+
+fn build_oriented_meshes(
+    mesh: &Mesh,
+    rotations: &[Rotation],
+    voxel: f32,
+    deadline: Deadline,
+) -> Result<Option<Vec<Option<OrientedMesh>>>> {
+    let timed_out = AtomicBool::new(false);
+    let built = rotations
+        .par_iter()
+        .map(|&rotation| -> Result<Option<OrientedMesh>> {
+            if deadline.expired() {
+                timed_out.store(true, AtomicOrdering::Relaxed);
+                return Ok(None);
+            }
+            let oriented = voxelize_mesh(mesh, rotation, voxel)?;
+            Ok((oriented.voxel_count > 0).then_some(oriented))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    if timed_out.load(AtomicOrdering::Relaxed) || deadline.expired() {
+        Ok(None)
+    } else {
+        Ok(Some(built))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn search_placements_from_oriented(
+    oriented_meshes: &[Option<OrientedMesh>],
+    tray: Tray,
+    occupied: &[bool],
+    height_weight: f32,
+    interlock_free: bool,
+    forbidden: Option<&HashSet<PlacementKey>>,
+    limit: usize,
+    deadline: Deadline,
+) -> Result<SearchManyOutcome> {
     let distance = manhattan_distance_field(tray, occupied);
     if deadline.expired() {
         return Ok(SearchManyOutcome::TimedOut);
     }
     let existing_fft = fft_of_bool_grid(tray, occupied);
     let distance_fft = fft_of_scalar_grid(tray, &distance);
-    let mut best = Vec::<Placement>::new();
 
-    for (rotation_index, &rotation) in rotations.iter().enumerate() {
-        if deadline.expired() {
-            return Ok(SearchManyOutcome::TimedOut);
-        }
-        let oriented = voxelize_mesh(mesh, rotation, tray.voxel)?;
-        if oriented.voxel_count == 0 {
-            continue;
-        }
-        if oriented.nx > tray.nx || oriented.ny > tray.ny || oriented.nz > tray.nz {
-            continue;
-        }
-
-        let object_fft = fft_of_object(tray, &oriented);
-        let collision = inverse_product(&existing_fft, &object_fft, tray, true);
-        let proximity = inverse_product(&distance_fft, &object_fft, tray, true);
-        let reachable = if interlock_free {
-            Some(reachable_offsets(tray, &oriented, &collision))
-        } else {
-            None
-        };
-
-        let max_x = tray.nx - oriented.nx;
-        let max_y = tray.ny - oriented.ny;
-        let max_z = tray.nz - oriented.nz;
-        for z in 0..=max_z {
-            if deadline.expired() {
-                return Ok(SearchManyOutcome::TimedOut);
-            }
-            let z_norm = if tray.nz > 1 {
-                z as f32 / (tray.nz - 1) as f32
-            } else {
-                0.0
+    let timed_out = AtomicBool::new(false);
+    let per_rotation = oriented_meshes
+        .par_iter()
+        .enumerate()
+        .map(|(rotation_index, oriented)| -> Result<Vec<Placement>> {
+            let Some(oriented) = oriented else {
+                return Ok(Vec::new());
             };
-            let height_cost = height_weight * z_norm.powi(3);
-            for y in 0..=max_y {
-                for x in 0..=max_x {
-                    if forbidden
-                        .map(|keys| keys.contains(&(rotation_index, x, y, z)))
-                        .unwrap_or(false)
-                    {
-                        continue;
-                    }
-                    let grid_index = idx(x, y, z, tray.nx, tray.ny);
-                    if collision[grid_index] > 0.5 {
-                        continue;
-                    }
-                    if let Some(reachable) = &reachable {
-                        let offset_index = idx(x, y, z, max_x + 1, max_y + 1);
-                        if !reachable[offset_index] {
+            if deadline.expired() {
+                timed_out.store(true, AtomicOrdering::Relaxed);
+                return Ok(Vec::new());
+            }
+            if oriented.nx > tray.nx || oriented.ny > tray.ny || oriented.nz > tray.nz {
+                return Ok(Vec::new());
+            }
+
+            let object_fft = fft_of_object(tray, oriented);
+            let collision = inverse_product(&existing_fft, &object_fft, tray, true);
+            let proximity = inverse_product(&distance_fft, &object_fft, tray, true);
+            let reachable = if interlock_free {
+                Some(reachable_offsets(tray, oriented, &collision))
+            } else {
+                None
+            };
+
+            let mut best = Vec::<Placement>::new();
+            let max_x = tray.nx - oriented.nx;
+            let max_y = tray.ny - oriented.ny;
+            let max_z = tray.nz - oriented.nz;
+            for z in 0..=max_z {
+                if deadline.expired() {
+                    timed_out.store(true, AtomicOrdering::Relaxed);
+                    return Ok(best);
+                }
+                let z_norm = if tray.nz > 1 {
+                    z as f32 / (tray.nz - 1) as f32
+                } else {
+                    0.0
+                };
+                let height_cost = height_weight * z_norm.powi(3);
+                for y in 0..=max_y {
+                    for x in 0..=max_x {
+                        if forbidden
+                            .map(|keys| keys.contains(&(rotation_index, x, y, z)))
+                            .unwrap_or(false)
+                        {
                             continue;
                         }
+                        let grid_index = idx(x, y, z, tray.nx, tray.ny);
+                        if collision[grid_index] > 0.5 {
+                            continue;
+                        }
+                        if let Some(reachable) = &reachable {
+                            let offset_index = idx(x, y, z, max_x + 1, max_y + 1);
+                            if !reachable[offset_index] {
+                                continue;
+                            }
+                        }
+                        let fit_cost = proximity[grid_index] / oriented.voxel_count as f32;
+                        let cost = fit_cost + height_cost;
+                        push_best_placement(
+                            &mut best,
+                            limit,
+                            Placement {
+                                oriented: oriented.clone(),
+                                rotation_index,
+                                offset: (x, y, z),
+                                cost,
+                            },
+                        );
                     }
-                    let fit_cost = proximity[grid_index] / oriented.voxel_count as f32;
-                    let cost = fit_cost + height_cost;
-                    push_best_placement(
-                        &mut best,
-                        limit,
-                        Placement {
-                            oriented: oriented.clone(),
-                            rotation_index,
-                            offset: (x, y, z),
-                            cost,
-                        },
-                    );
                 }
             }
+            Ok(best)
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    if timed_out.load(AtomicOrdering::Relaxed) || deadline.expired() {
+        return Ok(SearchManyOutcome::TimedOut);
+    }
+
+    let mut best = Vec::<Placement>::new();
+    for placements in per_rotation {
+        for placement in placements {
+            push_best_placement(&mut best, limit, placement);
         }
     }
 
     if best.is_empty() {
         Ok(SearchManyOutcome::NotFound)
     } else {
-        best.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(Ordering::Equal));
+        best.sort_by(|a, b| compare_placements_by_cost(b, a));
         Ok(SearchManyOutcome::Found(best))
     }
+}
+
+fn compare_placements_by_cost(a: &Placement, b: &Placement) -> Ordering {
+    a.cost
+        .partial_cmp(&b.cost)
+        .unwrap_or(Ordering::Equal)
+        .then_with(|| a.rotation_index.cmp(&b.rotation_index))
+        .then_with(|| a.offset.2.cmp(&b.offset.2))
+        .then_with(|| a.offset.1.cmp(&b.offset.1))
+        .then_with(|| a.offset.0.cmp(&b.offset.0))
 }
 
 fn push_best_placement(best: &mut Vec<Placement>, limit: usize, placement: Placement) {
@@ -1625,7 +1709,7 @@ fn push_best_placement(best: &mut Vec<Placement>, limit: usize, placement: Place
         return;
     }
     best.push(placement);
-    best.sort_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap_or(Ordering::Equal));
+    best.sort_by(compare_placements_by_cost);
     best.truncate(limit);
 }
 
