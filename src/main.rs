@@ -545,6 +545,8 @@ struct OrderState {
     remaining_indices: Vec<usize>,
     unpacked_indices: Vec<usize>,
     cost: f32,
+    future_cost: f32,
+    rank_score: f32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1097,14 +1099,17 @@ fn pack_meshes_order_bl(
     bl_candidate_limit: usize,
     deadline: Deadline,
 ) -> Result<(Option<BeamState>, bool)> {
-    let mut states = vec![OrderState {
-        placed: Vec::new(),
-        occupied: vec![false; tray.len()],
-        remaining_indices: (0..meshes.len()).collect(),
-        unpacked_indices: Vec::new(),
-        cost: 0.0,
-    }];
+    let empty_occupied = vec![false; tray.len()];
+    let mut states = vec![make_order_state(
+        tray,
+        Vec::new(),
+        empty_occupied,
+        (0..meshes.len()).collect(),
+        Vec::new(),
+        0.0,
+    )];
     let mut oriented_cache = vec![None; meshes.len()];
+    let placement_limit = beam_width.clamp(2, 4);
 
     while states
         .iter()
@@ -1119,13 +1124,10 @@ fn pack_meshes_order_bl(
                 next_states.push(state.clone());
                 continue;
             }
-            let candidate_indices = state
-                .remaining_indices
-                .iter()
-                .copied()
-                .take(order_window)
-                .collect::<Vec<_>>();
-            for source_index in candidate_indices {
+            let candidate_indices =
+                select_order_candidate_indices(meshes, tray, state, order_window);
+            let distance = manhattan_distance_field(tray, &state.occupied);
+            for (candidate_rank, source_index) in candidate_indices.iter().copied().enumerate() {
                 let mesh = &meshes[source_index];
                 if oriented_cache[source_index].is_none() {
                     let Some(oriented_meshes) =
@@ -1136,73 +1138,95 @@ fn pack_meshes_order_bl(
                     oriented_cache[source_index] = Some(oriented_meshes);
                 }
                 let oriented_meshes = oriented_cache[source_index].as_ref().expect("cached");
-                let placement = match search_bl_placements(
+                let object_placement_limit = if candidate_rank == 0 {
+                    placement_limit
+                } else {
+                    1
+                };
+                let placements = match search_bl_placements(
                     oriented_meshes,
                     tray,
                     &state.occupied,
+                    &distance,
                     height_weight,
                     interlock_free,
                     bl_candidate_limit,
-                    1,
+                    object_placement_limit,
+                    candidate_rank == 0,
                     deadline,
                 )? {
-                    SearchManyOutcome::Found(mut placements) => placements.pop(),
-                    SearchManyOutcome::NotFound => None,
+                    SearchManyOutcome::Found(placements) => placements.into_iter().rev().collect(),
+                    SearchManyOutcome::NotFound => Vec::new(),
                     SearchManyOutcome::TimedOut => {
                         return Ok((best_order_state(states.clone()), true));
                     }
                 };
-                let Some(placement) = placement else {
-                    continue;
-                };
-                let mut occupied = state.occupied.clone();
-                let outcome = place_with_candidate(
-                    mesh,
-                    source_index,
-                    tray,
-                    &mut occupied,
-                    &state.placed,
-                    refine,
-                    refine_margin,
-                    false,
-                    deadline,
-                    placement.clone(),
-                )?;
-                match outcome {
-                    PlaceOutcome::Placed(placed_mesh) => {
-                        let mut placed = state.placed.clone();
-                        placed.push(placed_mesh);
-                        let mut remaining_indices = state.remaining_indices.clone();
-                        if let Some(position) = remaining_indices
-                            .iter()
-                            .position(|&index| index == source_index)
-                        {
-                            remaining_indices.remove(position);
+                for placement in placements {
+                    let mut occupied = state.occupied.clone();
+                    let outcome = place_with_candidate(
+                        mesh,
+                        source_index,
+                        tray,
+                        &mut occupied,
+                        &state.placed,
+                        refine,
+                        refine_margin,
+                        false,
+                        deadline,
+                        placement.clone(),
+                    )?;
+                    match outcome {
+                        PlaceOutcome::Placed(placed_mesh) => {
+                            let mut placed = state.placed.clone();
+                            placed.push(placed_mesh);
+                            let mut remaining_indices = state.remaining_indices.clone();
+                            if let Some(position) = remaining_indices
+                                .iter()
+                                .position(|&index| index == source_index)
+                            {
+                                remaining_indices.remove(position);
+                            }
+                            let cost = state.cost + placement.cost;
+                            next_states.push(make_order_state(
+                                tray,
+                                placed,
+                                occupied,
+                                remaining_indices,
+                                state.unpacked_indices.clone(),
+                                cost,
+                            ));
                         }
-                        next_states.push(OrderState {
-                            placed,
-                            occupied,
-                            remaining_indices,
-                            unpacked_indices: state.unpacked_indices.clone(),
-                            cost: state.cost + placement.cost,
-                        });
+                        PlaceOutcome::NotFound => {}
+                        PlaceOutcome::TimedOut => {
+                            return Ok((best_order_state(states.clone()), true));
+                        }
                     }
-                    PlaceOutcome::NotFound => {}
-                    PlaceOutcome::TimedOut => return Ok((best_order_state(states.clone()), true)),
                 }
             }
 
             let mut remaining_indices = state.remaining_indices.clone();
-            let skipped_index = remaining_indices.remove(0);
-            let mut unpacked_indices = state.unpacked_indices.clone();
-            unpacked_indices.push(skipped_index);
-            next_states.push(OrderState {
-                placed: state.placed.clone(),
-                occupied: state.occupied.clone(),
-                remaining_indices,
-                unpacked_indices,
-                cost: state.cost + 1.0e6,
-            });
+            if let Some(skipped_index) = candidate_indices
+                .first()
+                .copied()
+                .or_else(|| state.remaining_indices.first().copied())
+            {
+                if let Some(position) = remaining_indices
+                    .iter()
+                    .position(|&index| index == skipped_index)
+                {
+                    remaining_indices.remove(position);
+                }
+                let mut unpacked_indices = state.unpacked_indices.clone();
+                unpacked_indices.push(skipped_index);
+                next_states.push(make_order_state(
+                    tray,
+                    state.placed.clone(),
+                    state.occupied.clone(),
+                    remaining_indices,
+                    unpacked_indices,
+                    state.cost + 1.0e6,
+                ));
+            }
         }
 
         next_states.sort_by(compare_order_states);
@@ -1222,14 +1246,67 @@ fn pack_meshes_order_bl(
     Ok((states.into_iter().next().map(order_state_to_beam), false))
 }
 
+fn make_order_state(
+    tray: Tray,
+    placed: Vec<PlacedMesh>,
+    occupied: Vec<bool>,
+    remaining_indices: Vec<usize>,
+    unpacked_indices: Vec<usize>,
+    cost: f32,
+) -> OrderState {
+    let future_cost = future_space_cost(tray, &occupied);
+    let rank_score = order_state_rank_score(
+        tray,
+        placed.len(),
+        placed_mesh_volume(&placed),
+        unpacked_indices.len(),
+        cost,
+        future_cost,
+    );
+    OrderState {
+        placed,
+        occupied,
+        remaining_indices,
+        unpacked_indices,
+        cost,
+        future_cost,
+        rank_score,
+    }
+}
+
+fn order_state_rank_score(
+    tray: Tray,
+    placed_count: usize,
+    placed_volume: f32,
+    unpacked_count: usize,
+    cost: f32,
+    future_cost: f32,
+) -> f32 {
+    let voxel_volume = tray.voxel.powi(3).max(1.0e-6);
+    placed_count as f32 * 1000.0 + placed_volume / voxel_volume * 0.05
+        - unpacked_count as f32 * 180.0
+        - future_cost * 18.0
+        - cost * 0.02
+}
+
 fn compare_order_states(a: &OrderState, b: &OrderState) -> Ordering {
     b.placed
         .len()
         .cmp(&a.placed.len())
         .then_with(|| a.unpacked_indices.len().cmp(&b.unpacked_indices.len()))
         .then_with(|| {
+            b.rank_score
+                .partial_cmp(&a.rank_score)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| {
             placed_mesh_volume(&b.placed)
                 .partial_cmp(&placed_mesh_volume(&a.placed))
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| {
+            a.future_cost
+                .partial_cmp(&b.future_cost)
                 .unwrap_or(Ordering::Equal)
         })
         .then_with(|| a.cost.partial_cmp(&b.cost).unwrap_or(Ordering::Equal))
@@ -1249,6 +1326,126 @@ fn order_state_to_beam(mut state: OrderState) -> BeamState {
         cost: state.cost,
         greedy_baseline: false,
     }
+}
+
+fn select_order_candidate_indices(
+    meshes: &[Mesh],
+    tray: Tray,
+    state: &OrderState,
+    order_window: usize,
+) -> Vec<usize> {
+    let occupied_count = state.occupied.iter().filter(|&&cell| cell).count();
+    let fill_ratio = occupied_count as f32 / tray.len() as f32;
+    let empty_count = tray.len().saturating_sub(occupied_count);
+    let mut scored = state
+        .remaining_indices
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(position, index)| {
+            let mesh = &meshes[index];
+            let (min, max) = mesh.bbox();
+            let extent = max - min;
+            let bbox_voxels = ((extent.x / tray.voxel).ceil().max(1.0)
+                * (extent.y / tray.voxel).ceil().max(1.0)
+                * (extent.z / tray.voxel).ceil().max(1.0)) as usize;
+            let volume_cells = mesh.bbox_volume() / tray.voxel.powi(3).max(1.0e-6);
+            let oversized_penalty = if bbox_voxels > empty_count {
+                1.0e6
+            } else {
+                0.0
+            };
+            let size_term = if fill_ratio < 0.45 {
+                -volume_cells
+            } else if fill_ratio < 0.70 {
+                -volume_cells.sqrt()
+            } else {
+                volume_cells
+            };
+            let footprint_ratio =
+                (extent.x * extent.y / (tray.width * tray.depth).max(1.0e-6)).max(0.0);
+            let tall_penalty = fill_ratio * extent.z / tray.height.max(1.0e-6) * 40.0;
+            let order_penalty = position as f32 * 0.001;
+            (
+                index,
+                oversized_penalty
+                    + size_term
+                    + footprint_ratio * 6.0
+                    + tall_penalty
+                    + order_penalty,
+            )
+        })
+        .collect::<Vec<_>>();
+    scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+    let mut selected = Vec::new();
+    let mut seen = HashSet::new();
+    for (index, _) in scored {
+        if seen.insert(index) {
+            selected.push(index);
+            if selected.len() >= order_window {
+                break;
+            }
+        }
+    }
+    selected
+}
+
+fn future_space_cost(tray: Tray, occupied: &[bool]) -> f32 {
+    let mut empty_count = 0usize;
+    let mut used_top = 0usize;
+    let mut low_voids = 0usize;
+    let mut column_tops = vec![0usize; tray.nx * tray.ny];
+    for z in 0..tray.nz {
+        for y in 0..tray.ny {
+            for x in 0..tray.nx {
+                let i = idx(x, y, z, tray.nx, tray.ny);
+                if occupied[i] {
+                    used_top = used_top.max(z + 1);
+                    column_tops[x + y * tray.nx] = z + 1;
+                } else {
+                    empty_count += 1;
+                }
+            }
+        }
+    }
+    if empty_count == 0 {
+        return 0.0;
+    }
+
+    for y in 0..tray.ny {
+        for x in 0..tray.nx {
+            let top = column_tops[x + y * tray.nx];
+            for z in 0..top {
+                if !occupied[idx(x, y, z, tray.nx, tray.ny)] {
+                    low_voids += 1;
+                }
+            }
+        }
+    }
+    let mut roughness = 0usize;
+    let mut rough_edges = 0usize;
+    for y in 0..tray.ny {
+        for x in 0..tray.nx {
+            let current = column_tops[x + y * tray.nx];
+            if x + 1 < tray.nx {
+                roughness += current.abs_diff(column_tops[x + 1 + y * tray.nx]);
+                rough_edges += 1;
+            }
+            if y + 1 < tray.ny {
+                roughness += current.abs_diff(column_tops[x + (y + 1) * tray.nx]);
+                rough_edges += 1;
+            }
+        }
+    }
+    let roughness_norm = if rough_edges > 0 {
+        roughness as f32 / rough_edges as f32 / tray.nz as f32
+    } else {
+        0.0
+    };
+    let low_void_ratio = low_voids as f32 / empty_count as f32;
+    let height_ratio = used_top as f32 / tray.nz as f32;
+    low_void_ratio * 60.0 + roughness_norm * 20.0 + height_ratio * 8.0
 }
 
 fn optimize_disassembly(
@@ -1959,13 +2156,18 @@ fn search_bl_placements(
     oriented_meshes: &[Option<OrientedMesh>],
     tray: Tray,
     occupied: &[bool],
+    distance: &[f32],
     height_weight: f32,
     interlock_free: bool,
     candidate_limit: usize,
     limit: usize,
+    contact_fft: bool,
     deadline: Deadline,
 ) -> Result<SearchManyOutcome> {
     let timed_out = AtomicBool::new(false);
+    let big_m = tray.len() as f32 + 1.0;
+    let contact_field_fft = contact_fft
+        .then(|| fft_of_scalar_grid(tray, &contact_candidate_field(tray, occupied, big_m)));
     let per_rotation = oriented_meshes
         .par_iter()
         .enumerate()
@@ -1981,7 +2183,21 @@ fn search_bl_placements(
                 return Vec::new();
             }
             let mut best = Vec::new();
-            for offset in bl_candidate_offsets(tray, occupied, oriented, candidate_limit) {
+            let candidate_offsets = if let Some(contact_field_fft) = &contact_field_fft {
+                let object_fft = fft_of_object(tray, oriented);
+                let contact_scores = inverse_product(contact_field_fft, &object_fft, tray, true);
+                contact_fft_candidate_offsets(
+                    tray,
+                    occupied,
+                    oriented,
+                    &contact_scores,
+                    big_m,
+                    candidate_limit,
+                )
+            } else {
+                bl_candidate_offsets(tray, occupied, oriented, candidate_limit)
+            };
+            for offset in candidate_offsets {
                 if deadline.expired() {
                     timed_out.store(true, AtomicOrdering::Relaxed);
                     break;
@@ -1992,22 +2208,8 @@ fn search_bl_placements(
                 if interlock_free && !linear_axis_reachable(tray, occupied, oriented, offset) {
                     continue;
                 }
-                let z_norm = if tray.nz > 1 {
-                    offset.2 as f32 / (tray.nz - 1) as f32
-                } else {
-                    0.0
-                };
-                let y_norm = if tray.ny > 1 {
-                    offset.1 as f32 / (tray.ny - 1) as f32
-                } else {
-                    0.0
-                };
-                let x_norm = if tray.nx > 1 {
-                    offset.0 as f32 / (tray.nx - 1) as f32
-                } else {
-                    0.0
-                };
-                let cost = height_weight * z_norm.powi(3) + z_norm + y_norm * 0.1 + x_norm * 0.01;
+                let cost =
+                    bl_placement_cost(tray, occupied, distance, oriented, offset, height_weight);
                 push_best_placement(
                     &mut best,
                     limit,
@@ -2041,6 +2243,87 @@ fn search_bl_placements(
     }
 }
 
+fn contact_candidate_field(tray: Tray, occupied: &[bool], big_m: f32) -> Vec<f32> {
+    let mut field = vec![0.0; tray.len()];
+    for z in 0..tray.nz {
+        for y in 0..tray.ny {
+            for x in 0..tray.nx {
+                let i = idx(x, y, z, tray.nx, tray.ny);
+                if occupied[i] {
+                    field[i] = big_m;
+                    for (nxp, nyp, nzp) in neighbors6(x, y, z, tray.nx, tray.ny, tray.nz) {
+                        let ni = idx(nxp, nyp, nzp, tray.nx, tray.ny);
+                        if !occupied[ni] && field[ni] < 1.0 {
+                            field[ni] = 1.0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    field
+}
+
+fn contact_fft_candidate_offsets(
+    tray: Tray,
+    occupied: &[bool],
+    object: &OrientedMesh,
+    contact_scores: &[f32],
+    big_m: f32,
+    candidate_limit: usize,
+) -> Vec<(usize, usize, usize)> {
+    if !occupied.iter().any(|&cell| cell) {
+        return vec![(0, 0, 0)];
+    }
+
+    let max_x = tray.nx - object.nx;
+    let max_y = tray.ny - object.ny;
+    let max_z = tray.nz - object.nz;
+    let mut scored = Vec::new();
+    for z in 0..=max_z {
+        for y in 0..=max_y {
+            for x in 0..=max_x {
+                let score = contact_scores[idx(x, y, z, tray.nx, tray.ny)];
+                if score > 0.5
+                    && score < big_m - 0.5
+                    && can_place_voxels(tray, occupied, object, (x, y, z))
+                {
+                    scored.push(((x, y, z), score));
+                }
+            }
+        }
+    }
+
+    scored.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| compare_offsets_bl(&a.0, &b.0))
+    });
+
+    let mut seen = HashSet::new();
+    let mut candidates = Vec::new();
+    for (offset, _) in scored {
+        if seen.insert(offset) {
+            candidates.push(offset);
+            if candidates.len() >= candidate_limit {
+                break;
+            }
+        }
+    }
+
+    if candidates.len() < candidate_limit {
+        for offset in bl_candidate_offsets(tray, occupied, object, candidate_limit) {
+            if seen.insert(offset) {
+                candidates.push(offset);
+                if candidates.len() >= candidate_limit {
+                    break;
+                }
+            }
+        }
+    }
+    candidates
+}
+
 fn bl_candidate_offsets(
     tray: Tray,
     occupied: &[bool],
@@ -2059,6 +2342,7 @@ fn bl_candidate_offsets(
                 if !occupied[idx(x, y, z, tray.nx, tray.ny)] {
                     continue;
                 }
+                raw.insert((x.min(max_x), y.min(max_y), z.min(max_z)));
                 if x < max_x {
                     raw.insert((x + 1, y.min(max_y), z.min(max_z)));
                 }
@@ -2072,6 +2356,51 @@ fn bl_candidate_offsets(
         }
     }
 
+    if raw.len() < candidate_limit {
+        let column_tops = column_top_heights(tray, occupied);
+        let footprint = object_footprint_cells(object);
+        let mut extra = HashSet::new();
+        for y in 0..=max_y {
+            for x in 0..=max_x {
+                let z = support_height_for_object(tray, &footprint, &column_tops, x, y).min(max_z);
+                extra.insert((x, y, z));
+                if z < max_z {
+                    extra.insert((x, y, z + 1));
+                }
+                if x > 0 {
+                    extra.insert((x - 1, y, z));
+                }
+                if y > 0 {
+                    extra.insert((x, y - 1, z));
+                }
+            }
+        }
+
+        if extra.len() < candidate_limit {
+            'cavities: for z in 0..tray.nz {
+                for y in 0..tray.ny {
+                    for x in 0..tray.nx {
+                        let i = idx(x, y, z, tray.nx, tray.ny);
+                        if occupied[i] || cavity_neighbor_count(tray, occupied, x, y, z) < 3 {
+                            continue;
+                        }
+                        add_clamped_anchor_candidates(
+                            &mut extra, x, y, z, object, max_x, max_y, max_z,
+                        );
+                        if extra.len() >= candidate_limit {
+                            break 'cavities;
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut extra_candidates = extra.into_iter().collect::<Vec<_>>();
+        extra_candidates.sort_by(compare_offsets_bl);
+        extra_candidates.truncate(candidate_limit.saturating_sub(raw.len()));
+        raw.extend(extra_candidates);
+    }
+
     let mut settled = HashSet::new();
     for offset in raw {
         if let Some(offset) = settle_bl_offset(tray, occupied, object, offset) {
@@ -2082,6 +2411,180 @@ fn bl_candidate_offsets(
     candidates.sort_by(compare_offsets_bl);
     candidates.truncate(candidate_limit);
     candidates
+}
+
+fn object_footprint_cells(object: &OrientedMesh) -> Vec<(usize, usize)> {
+    let mut seen = HashSet::new();
+    for &(x, y, _) in &object.cells {
+        seen.insert((x, y));
+    }
+    seen.into_iter().collect()
+}
+
+fn column_top_heights(tray: Tray, occupied: &[bool]) -> Vec<usize> {
+    let mut tops = vec![0usize; tray.nx * tray.ny];
+    for y in 0..tray.ny {
+        for x in 0..tray.nx {
+            let mut top = 0usize;
+            for z in 0..tray.nz {
+                if occupied[idx(x, y, z, tray.nx, tray.ny)] {
+                    top = z + 1;
+                }
+            }
+            tops[x + y * tray.nx] = top;
+        }
+    }
+    tops
+}
+
+fn support_height_for_object(
+    tray: Tray,
+    footprint: &[(usize, usize)],
+    column_tops: &[usize],
+    ox: usize,
+    oy: usize,
+) -> usize {
+    let mut support = 0usize;
+    for &(x, y) in footprint {
+        let gx = ox + x;
+        let gy = oy + y;
+        if gx < tray.nx && gy < tray.ny {
+            support = support.max(column_tops[gx + gy * tray.nx]);
+        }
+    }
+    support
+}
+
+fn cavity_neighbor_count(tray: Tray, occupied: &[bool], x: usize, y: usize, z: usize) -> usize {
+    let mut count = 0usize;
+    for (nxp, nyp, nzp) in neighbors6(x, y, z, tray.nx, tray.ny, tray.nz) {
+        if occupied[idx(nxp, nyp, nzp, tray.nx, tray.ny)] {
+            count += 1;
+        }
+    }
+    if x == 0 || x + 1 == tray.nx {
+        count += 1;
+    }
+    if y == 0 || y + 1 == tray.ny {
+        count += 1;
+    }
+    if z == 0 || z + 1 == tray.nz {
+        count += 1;
+    }
+    count
+}
+
+fn add_clamped_anchor_candidates(
+    raw: &mut HashSet<(usize, usize, usize)>,
+    x: usize,
+    y: usize,
+    z: usize,
+    object: &OrientedMesh,
+    max_x: usize,
+    max_y: usize,
+    max_z: usize,
+) {
+    let x_candidates = [
+        x.saturating_sub(object.nx / 2),
+        x.saturating_add(1).saturating_sub(object.nx),
+        x,
+    ];
+    let y_candidates = [
+        y.saturating_sub(object.ny / 2),
+        y.saturating_add(1).saturating_sub(object.ny),
+        y,
+    ];
+    let z_candidates = [
+        z.saturating_sub(object.nz / 2),
+        z.saturating_add(1).saturating_sub(object.nz),
+        z,
+    ];
+    for ox in x_candidates {
+        for oy in y_candidates {
+            for oz in z_candidates {
+                raw.insert((ox.min(max_x), oy.min(max_y), oz.min(max_z)));
+            }
+        }
+    }
+}
+
+fn bl_placement_cost(
+    tray: Tray,
+    occupied: &[bool],
+    distance: &[f32],
+    object: &OrientedMesh,
+    offset: (usize, usize, usize),
+    height_weight: f32,
+) -> f32 {
+    let z_norm = if tray.nz > 1 {
+        offset.2 as f32 / (tray.nz - 1) as f32
+    } else {
+        0.0
+    };
+    let y_norm = if tray.ny > 1 {
+        offset.1 as f32 / (tray.ny - 1) as f32
+    } else {
+        0.0
+    };
+    let x_norm = if tray.nx > 1 {
+        offset.0 as f32 / (tray.nx - 1) as f32
+    } else {
+        0.0
+    };
+    let mut distance_sum = 0.0;
+    let step = object.cells.len().div_ceil(64).max(1);
+    let mut sampled = 0usize;
+    for &(x, y, z) in object.cells.iter().step_by(step) {
+        distance_sum += distance[idx(offset.0 + x, offset.1 + y, offset.2 + z, tray.nx, tray.ny)];
+        sampled += 1;
+    }
+    let fit_cost = distance_sum / sampled.max(1) as f32 / tray.voxel.max(1.0e-6);
+    let contact = placement_contact_ratio(tray, occupied, object, offset, step);
+    fit_cost * 0.35 + height_weight * z_norm.powi(3) + z_norm * 0.35 + y_norm * 0.04 + x_norm * 0.01
+        - contact * 0.6
+}
+
+fn placement_contact_ratio(
+    tray: Tray,
+    occupied: &[bool],
+    object: &OrientedMesh,
+    offset: (usize, usize, usize),
+    step: usize,
+) -> f32 {
+    let mut contact_faces = 0usize;
+    let mut total_faces = 0usize;
+    for &(x, y, z) in object.cells.iter().step_by(step) {
+        let gx = offset.0 + x;
+        let gy = offset.1 + y;
+        let gz = offset.2 + z;
+        for axis in 0..3 {
+            for positive in [false, true] {
+                total_faces += 1;
+                let neighbor = match (axis, positive) {
+                    (0, false) if gx == 0 => None,
+                    (0, false) => Some((gx - 1, gy, gz)),
+                    (0, true) if gx + 1 == tray.nx => None,
+                    (0, true) => Some((gx + 1, gy, gz)),
+                    (1, false) if gy == 0 => None,
+                    (1, false) => Some((gx, gy - 1, gz)),
+                    (1, true) if gy + 1 == tray.ny => None,
+                    (1, true) => Some((gx, gy + 1, gz)),
+                    (2, false) if gz == 0 => None,
+                    (2, false) => Some((gx, gy, gz - 1)),
+                    (2, true) if gz + 1 == tray.nz => None,
+                    (2, true) => Some((gx, gy, gz + 1)),
+                    _ => unreachable!(),
+                };
+                if neighbor
+                    .map(|(nxp, nyp, nzp)| occupied[idx(nxp, nyp, nzp, tray.nx, tray.ny)])
+                    .unwrap_or(true)
+                {
+                    contact_faces += 1;
+                }
+            }
+        }
+    }
+    contact_faces as f32 / total_faces.max(1) as f32
 }
 
 fn compare_offsets_bl(a: &(usize, usize, usize), b: &(usize, usize, usize)) -> Ordering {
