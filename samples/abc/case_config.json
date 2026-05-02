@@ -7,12 +7,12 @@
     "voxel": 1.0,
     "footprint_fraction": 0.55,
     "tray_mode": "container_equal_bbox_volume",
-    "container_ratio": [12.03, 2.35, 2.39]
+    "container_ratio": [5.898, 2.352, 2.393]
   },
   "abc_100": {
     "voxel": 1.0,
     "footprint_fraction": 0.55,
     "tray_mode": "container_equal_bbox_volume",
-    "container_ratio": [12.03, 2.35, 2.39]
+    "container_ratio": [5.898, 2.352, 2.393]
   }
 }

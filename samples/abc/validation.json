@@ -44,20 +44,20 @@
     ]
   },
   "abc_50": {
-    "command": "target/release/spectral-packing pack samples/abc/abc_50 --out target/abc/tight_bbox/abc_50.stl --width 28.2767 --depth 5.52371 --height 5.61774 --voxel 1 --rotations 24 --height-weight 0.5 --beam-width 1",
+    "command": "target/release/spectral-packing pack samples/abc/abc_50 --out target/abc/tight_bbox/abc_50.stl --width 17.5691 --depth 7.00621 --height 7.12834 --voxel 1 --rotations 24 --height-weight 0.5 --beam-width 1",
     "output": "target/abc/tight_bbox/abc_50.stl",
     "log": "target/abc/tight_bbox/abc_50.log",
     "input_objects": 50,
-    "packed_objects": 27,
-    "voxel_density_percent": 63.48,
-    "mesh_density_percent": 15.67,
-    "ray_disassembly": "パック済み27個すべてがDirectional Blocking解析で取り出し可能（3パス）",
+    "packed_objects": 29,
+    "voxel_density_percent": 76.02,
+    "mesh_density_percent": 16.81,
+    "ray_disassembly": "パック済み29個すべてがDirectional Blocking解析で取り出し可能（5パス）",
     "timed_out": false,
     "completed": false,
     "tray": [
-      28.2767,
-      5.5237,
-      5.6177
+      17.5691,
+      7.0062,
+      7.1283
     ],
     "voxel": 1.0,
     "tray_mode": "container_equal_bbox_volume",
@@ -67,7 +67,7 @@
     "sum_bbox_xy_footprint": 445.9589847812023,
     "tray_volume": 877.4482446924496,
     "tray_to_bbox_volume_ratio": 0.9999999999999998,
-    "tray_footprint_area": 156.19252134518626,
+    "tray_footprint_area": 123.09296583170124,
     "requires_stacking_by_bbox": true,
     "max_bbox_extent": [
       4.0,
@@ -77,39 +77,39 @@
     "attempts": [
       {
         "tray": [
-          28.276717975782717,
-          5.52371465029837,
-          5.617735325197066
+          17.56913351827765,
+          7.006205838417943,
+          7.1283378279481875
         ],
         "volume_slack": 1.0,
         "footprint_fraction": 0.55,
         "tray_volume": 877.4482446924496,
-        "packed_objects": 27,
+        "packed_objects": 29,
         "return_code": 0,
         "timed_out": false
       }
     ],
     "container_ratio": [
-      12.03,
-      2.35,
-      2.39
+      5.898,
+      2.352,
+      2.393
     ]
   },
   "abc_100": {
-    "command": "target/release/spectral-packing pack samples/abc/abc_100 --out target/abc/tight_bbox/abc_100.stl --width 32.5381 --depth 6.35615 --height 6.46434 --voxel 1 --rotations 24 --height-weight 0.5 --beam-width 1",
+    "command": "target/release/spectral-packing pack samples/abc/abc_100 --out target/abc/tight_bbox/abc_100.stl --width 20.2168 --depth 8.06206 --height 8.20259 --voxel 1 --rotations 24 --height-weight 0.5 --beam-width 1",
     "output": "target/abc/tight_bbox/abc_100.stl",
     "log": "target/abc/tight_bbox/abc_100.log",
     "input_objects": 100,
-    "packed_objects": 46,
-    "voxel_density_percent": 65.37,
-    "mesh_density_percent": 14.36,
-    "ray_disassembly": "パック済み46個すべてがDirectional Blocking解析で取り出し可能（5パス）",
+    "packed_objects": 49,
+    "voxel_density_percent": 77.04,
+    "mesh_density_percent": 18.61,
+    "ray_disassembly": "パック済み49個すべてがDirectional Blocking解析で取り出し可能（7パス）",
     "timed_out": false,
     "completed": false,
     "tray": [
-      32.5381,
-      6.3561,
-      6.4643
+      20.2168,
+      8.0621,
+      8.2026
     ],
     "voxel": 1.0,
     "tray_mode": "container_equal_bbox_volume",
@@ -119,7 +119,7 @@
     "sum_bbox_xy_footprint": 774.623789803385,
     "tray_volume": 1336.9345669627098,
     "tray_to_bbox_volume_ratio": 1.0,
-    "tray_footprint_area": 206.81688727274877,
+    "tray_footprint_area": 162.98926362947694,
     "requires_stacking_by_bbox": true,
     "max_bbox_extent": [
       4.0,
@@ -129,22 +129,22 @@
     "attempts": [
       {
         "tray": [
-          32.53807690175199,
-          6.356149685712152,
-          6.464339467596615
+          20.216837682664003,
+          8.062055311906704,
+          8.202592840728206
         ],
         "volume_slack": 1.0,
         "footprint_fraction": 0.55,
         "tray_volume": 1336.9345669627098,
-        "packed_objects": 46,
+        "packed_objects": 49,
         "return_code": 0,
         "timed_out": false
       }
     ],
     "container_ratio": [
-      12.03,
-      2.35,
-      2.39
+      5.898,
+      2.352,
+      2.393
     ]
   }
 }

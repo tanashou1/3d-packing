@@ -33,7 +33,7 @@ DEFAULT_CASES = {
     "stacked_mixed_10x": {"voxel": 2.5, "footprint_fraction": 0.032},
 }
 
-CONTAINER_RATIO = [12.03, 2.35, 2.39]
+CONTAINER_RATIO = [5.898, 2.352, 2.393]
 
 
 def main() -> None:
