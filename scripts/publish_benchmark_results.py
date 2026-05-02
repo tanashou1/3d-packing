@@ -134,8 +134,19 @@ def result_entry(
     }
     if attribution is not None:
         entry["attribution"] = attribution
+    if result.get("tray_mode"):
+        entry["trayMode"] = result["tray_mode"]
+    if result.get("container_ratio"):
+        entry["containerRatio"] = result["container_ratio"]
+    if result.get("tray_to_bbox_volume_ratio") is not None:
+        entry["trayToBboxVolumeRatio"] = round(result["tray_to_bbox_volume_ratio"], 4)
     if result.get("timed_out"):
         entry["note"] = "時間制限で打ち切った部分結果"
+    elif (
+        result.get("tray_mode") == "container_equal_bbox_volume"
+        and not result.get("completed", False)
+    ):
+        entry["note"] = "bbox体積合計と同体積のコンテナ比率トレイでの部分結果"
     elif not result.get("completed", False):
         entry["note"] = "全物体は未配置の参考結果"
     if dataset == "abc":

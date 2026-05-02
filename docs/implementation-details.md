@@ -321,7 +321,7 @@ flowchart TD
 
 Thingi10Kサンプルは、公式APIからメタデータとSTLリンクを取得し、扱いやすいサイズへ正規化して保存します。各ケースには `attribution.json` を置き、ライセンス・作者・出典・元の面数などを保持します。
 
-ABC Datasetベンチマークは、公式tri-mesh/OBJチャンクが数GB単位になるため、Pages公開用にはHuggingFace上の整理済みSTEPサブセットを使います。`scripts/fetch_abc_step_subset.py` は固定リストまたはAPIで列挙したsimple/complex STEPを取得し、ABCメタデータのCAD face数と変換後STL面数で候補を絞り、`gmsh` でSTL化した後、`abc_micro`、`abc_50`、`abc_100` として正規化ASCII STLへ変換します。`abc_50` と `abc_100` は製造業サンプル向けに `complex` STEPだけを使います。ユーザーが別途取得・展開したOBJ/STL群から追加ケースを作る場合は、`scripts/create_abc_benchmark_cases.py` がローカルファイルを決定的な順序で走査し、面数範囲に合うCADモデルを `abc_micro`、`abc_small`、`abc_mixed` として生成します。検証用の `voxel` と `footprint_fraction` は `samples/abc/case_config.json` に保存され、検証スクリプトは `--case-config` または `samples/case_config.json` から追加ケース設定を読み込みます。
+ABC Datasetベンチマークは、公式tri-mesh/OBJチャンクが数GB単位になるため、Pages公開用にはHuggingFace上の整理済みSTEPサブセットを使います。`scripts/fetch_abc_step_subset.py` は固定リストまたはAPIで列挙したsimple/complex STEPを取得し、ABCメタデータのCAD face数と変換後STL面数で候補を絞り、`gmsh` でSTL化した後、`abc_micro`、`abc_50`、`abc_100` として正規化ASCII STLへ変換します。`abc_50` と `abc_100` は製造業サンプル向けに `complex` STEPだけを使います。ユーザーが別途取得・展開したOBJ/STL群から追加ケースを作る場合は、`scripts/create_abc_benchmark_cases.py` がローカルファイルを決定的な順序で走査し、面数範囲に合うCADモデルを `abc_micro`、`abc_small`、`abc_mixed` として生成します。検証用の `voxel`、`footprint_fraction`、`tray_mode` は `samples/abc/case_config.json` に保存され、検証スクリプトは `--case-config` または `samples/case_config.json` から追加ケース設定を読み込みます。`tray_mode: container_equal_bbox_volume` では、40ft貨物コンテナの内寸比率に近い `12.03:2.35:2.39` を使い、トレイ体積を各物体bbox体積の合計と同じに固定します。
 
 検証後は `scripts/publish_benchmark_results.py --dataset abc` で、検証JSONが指すパック済みSTLを `docs/assets/packed/` へコピーし、`docs/assets/abc/validation.json` とケース別 `attribution.json` を配置します。同時に `docs/assets/results.json` の `abc-*` エントリを更新するため、Thingi10K結果と同じビューアで選択できます。
 

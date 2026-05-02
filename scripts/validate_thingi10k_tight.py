@@ -33,6 +33,8 @@ DEFAULT_CASES = {
     "stacked_mixed_10x": {"voxel": 2.5, "footprint_fraction": 0.032},
 }
 
+CONTAINER_RATIO = [12.03, 2.35, 2.39]
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -90,6 +92,8 @@ def main() -> None:
             args.output,
             config["voxel"],
             config["footprint_fraction"],
+            config["tray_mode"],
+            config["container_ratio"],
             args.rotations,
             args.height_weight,
             args.beam_width,
@@ -127,9 +131,16 @@ def load_case_configs(samples: Path, explicit_path: Path | None) -> dict:
             configs[case_name] = {
                 "voxel": float(config["voxel"]),
                 "footprint_fraction": float(config["footprint_fraction"]),
+                "tray_mode": config.get("tray_mode", "bbox_tight"),
+                "container_ratio": [
+                    float(value) for value in config.get("container_ratio", CONTAINER_RATIO)
+                ],
             }
     elif explicit_path is not None:
         raise FileNotFoundError(f"ケース設定が見つかりません: {explicit_path}")
+    for config in configs.values():
+        config.setdefault("tray_mode", "bbox_tight")
+        config.setdefault("container_ratio", CONTAINER_RATIO)
     return configs
 
 
@@ -142,6 +153,8 @@ def validate_case(
     output_dir: Path,
     voxel: float,
     footprint_fraction: float,
+    tray_mode: str,
+    container_ratio: list[float],
     rotations: int,
     height_weight: float,
     beam_width: int,
@@ -153,139 +166,187 @@ def validate_case(
 ) -> dict:
     input_count = len(stl_paths)
     attempts = []
-    for footprint_step in [0.0, 0.08, 0.16, 0.26, 0.40]:
-        for volume_slack in [1.05, 1.15, 1.30, 1.50, 1.80, 2.20, 2.70, 3.30]:
-            tray = compute_tight_tray(
-                dims,
+    for tray, candidate_footprint_fraction, volume_slack in tray_candidates(
+        dims,
+        voxel,
+        footprint_fraction,
+        tray_mode,
+        container_ratio,
+    ):
+        out_path = output_dir / f"{case_name}.stl"
+        log_path = output_dir / f"{case_name}.log"
+        command = [
+            str(binary),
+            "pack",
+            str(case_dir),
+            "--out",
+            str(out_path),
+            "--width",
+            f"{tray[0]:.6g}",
+            "--depth",
+            f"{tray[1]:.6g}",
+            "--height",
+            f"{tray[2]:.6g}",
+            "--voxel",
+            f"{voxel:.6g}",
+            "--rotations",
+            str(rotations),
+            "--height-weight",
+            f"{height_weight:.6g}",
+            "--beam-width",
+            str(beam_width),
+        ]
+        if repack_passes is not None:
+            command.extend(["--repack-passes", str(repack_passes)])
+        if repack_window is not None:
+            command.extend(["--repack-window", str(repack_window)])
+        if repack_unpacked_limit is not None:
+            command.extend(["--repack-unpacked-limit", str(repack_unpacked_limit)])
+        if time_limit_seconds is not None:
+            command.extend(["--time-limit-seconds", f"{time_limit_seconds:.6g}"])
+        completed = subprocess.run(command, text=True, capture_output=True)
+        combined_output = completed.stdout + completed.stderr
+        log_path.write_text(combined_output)
+        parsed = parse_packer_output(combined_output)
+        attempts.append(
+            {
+                "tray": tray,
+                "volume_slack": volume_slack,
+                "footprint_fraction": candidate_footprint_fraction,
+                "tray_volume": tray[0] * tray[1] * tray[2],
+                "packed_objects": parsed["packed_objects"],
+                "return_code": completed.returncode,
+                "timed_out": parsed["timed_out"],
+            }
+        )
+        if parsed["timed_out"]:
+            return validation_result(
+                command,
+                out_path,
+                log_path,
+                input_count,
+                parsed,
+                True,
+                False,
+                tray,
                 voxel,
+                volume_slack,
+                candidate_footprint_fraction,
+                tray_mode,
+                container_ratio,
+                dims,
+                attempts,
+            )
+        if completed.returncode == 0 and parsed["packed_objects"] == input_count:
+            return validation_result(
+                command,
+                out_path,
+                log_path,
+                input_count,
+                parsed,
+                False,
+                True,
+                tray,
+                voxel,
+                volume_slack,
+                candidate_footprint_fraction,
+                tray_mode,
+                container_ratio,
+                dims,
+                attempts,
+            )
+        if (single_attempt or tray_mode == "container_equal_bbox_volume") and completed.returncode == 0:
+            return validation_result(
+                command,
+                out_path,
+                log_path,
+                input_count,
+                parsed,
+                False,
+                False,
+                tray,
+                voxel,
+                volume_slack,
+                candidate_footprint_fraction,
+                tray_mode,
+                container_ratio,
+                dims,
+                attempts,
+            )
+
+    raise RuntimeError(f"{case_name} の全物体をパックできませんでした。試行={attempts}")
+
+
+def tray_candidates(
+    dims: list[tuple[float, float, float]],
+    voxel: float,
+    footprint_fraction: float,
+    tray_mode: str,
+    container_ratio: list[float],
+) -> list[tuple[tuple[float, float, float], float, float]]:
+    if tray_mode == "bbox_tight":
+        return [
+            (
+                compute_tight_tray(dims, voxel, footprint_fraction + footprint_step, volume_slack),
                 footprint_fraction + footprint_step,
                 volume_slack,
             )
-            out_path = output_dir / f"{case_name}.stl"
-            log_path = output_dir / f"{case_name}.log"
-            command = [
-                str(binary),
-                "pack",
-                str(case_dir),
-                "--out",
-                str(out_path),
-                "--width",
-                f"{tray[0]:.6g}",
-                "--depth",
-                f"{tray[1]:.6g}",
-                "--height",
-                f"{tray[2]:.6g}",
-                "--voxel",
-                f"{voxel:.6g}",
-                "--rotations",
-                str(rotations),
-                "--height-weight",
-                f"{height_weight:.6g}",
-                "--beam-width",
-                str(beam_width),
-            ]
-            if repack_passes is not None:
-                command.extend(["--repack-passes", str(repack_passes)])
-            if repack_window is not None:
-                command.extend(["--repack-window", str(repack_window)])
-            if repack_unpacked_limit is not None:
-                command.extend(["--repack-unpacked-limit", str(repack_unpacked_limit)])
-            if time_limit_seconds is not None:
-                command.extend(["--time-limit-seconds", f"{time_limit_seconds:.6g}"])
-            completed = subprocess.run(command, text=True, capture_output=True)
-            combined_output = completed.stdout + completed.stderr
-            log_path.write_text(combined_output)
-            parsed = parse_packer_output(combined_output)
-            attempts.append(
-                {
-                    "tray": tray,
-                    "volume_slack": volume_slack,
-                    "footprint_fraction": footprint_fraction + footprint_step,
-                    "packed_objects": parsed["packed_objects"],
-                    "return_code": completed.returncode,
-                    "timed_out": parsed["timed_out"],
-                }
-            )
-            if parsed["timed_out"]:
-                metrics = bbox_metrics(dims)
-                return {
-                    "command": " ".join(command),
-                    "output": str(out_path),
-                    "log": str(log_path),
-                    "input_objects": input_count,
-                    "packed_objects": parsed["packed_objects"],
-                    "voxel_density_percent": parsed["voxel_density_percent"],
-                    "mesh_density_percent": parsed["mesh_density_percent"],
-                    "ray_disassembly": parsed["ray_disassembly"],
-                    "timed_out": True,
-                    "completed": False,
-                    "tray": [round(v, 4) for v in tray],
-                    "voxel": voxel,
-                    "volume_slack": volume_slack,
-                    "footprint_fraction": footprint_fraction + footprint_step,
-                    "sum_bbox_volume": metrics["sum_bbox_volume"],
-                    "sum_bbox_xy_footprint": metrics["sum_bbox_xy_footprint"],
-                    "tray_volume": tray[0] * tray[1] * tray[2],
-                    "tray_footprint_area": tray[0] * tray[1],
-                    "requires_stacking_by_bbox": tray[0] * tray[1]
-                    < metrics["sum_bbox_xy_footprint"],
-                    "max_bbox_extent": metrics["max_bbox_extent"],
-                    "attempts": attempts,
-                }
-            if completed.returncode == 0 and parsed["packed_objects"] == input_count:
-                metrics = bbox_metrics(dims)
-                return {
-                    "command": " ".join(command),
-                    "output": str(out_path),
-                    "log": str(log_path),
-                    "input_objects": input_count,
-                    "packed_objects": parsed["packed_objects"],
-                    "voxel_density_percent": parsed["voxel_density_percent"],
-                    "mesh_density_percent": parsed["mesh_density_percent"],
-                    "ray_disassembly": parsed["ray_disassembly"],
-                    "timed_out": False,
-                    "completed": True,
-                    "tray": [round(v, 4) for v in tray],
-                    "voxel": voxel,
-                    "volume_slack": volume_slack,
-                    "footprint_fraction": footprint_fraction + footprint_step,
-                    "sum_bbox_volume": metrics["sum_bbox_volume"],
-                    "sum_bbox_xy_footprint": metrics["sum_bbox_xy_footprint"],
-                    "tray_volume": tray[0] * tray[1] * tray[2],
-                    "tray_footprint_area": tray[0] * tray[1],
-                    "requires_stacking_by_bbox": tray[0] * tray[1]
-                    < metrics["sum_bbox_xy_footprint"],
-                    "max_bbox_extent": metrics["max_bbox_extent"],
-                    "attempts": attempts,
-                }
-            if single_attempt and completed.returncode == 0:
-                metrics = bbox_metrics(dims)
-                return {
-                    "command": " ".join(command),
-                    "output": str(out_path),
-                    "log": str(log_path),
-                    "input_objects": input_count,
-                    "packed_objects": parsed["packed_objects"],
-                    "voxel_density_percent": parsed["voxel_density_percent"],
-                    "mesh_density_percent": parsed["mesh_density_percent"],
-                    "ray_disassembly": parsed["ray_disassembly"],
-                    "timed_out": False,
-                    "completed": False,
-                    "tray": [round(v, 4) for v in tray],
-                    "voxel": voxel,
-                    "volume_slack": volume_slack,
-                    "footprint_fraction": footprint_fraction + footprint_step,
-                    "sum_bbox_volume": metrics["sum_bbox_volume"],
-                    "sum_bbox_xy_footprint": metrics["sum_bbox_xy_footprint"],
-                    "tray_volume": tray[0] * tray[1] * tray[2],
-                    "tray_footprint_area": tray[0] * tray[1],
-                    "requires_stacking_by_bbox": tray[0] * tray[1]
-                    < metrics["sum_bbox_xy_footprint"],
-                    "max_bbox_extent": metrics["max_bbox_extent"],
-                    "attempts": attempts,
-                }
+            for footprint_step in [0.0, 0.08, 0.16, 0.26, 0.40]
+            for volume_slack in [1.05, 1.15, 1.30, 1.50, 1.80, 2.20, 2.70, 3.30]
+        ]
+    if tray_mode == "container_equal_bbox_volume":
+        return [(compute_container_equal_bbox_tray(dims, container_ratio), footprint_fraction, 1.0)]
+    raise ValueError(f"未知のtray_modeです: {tray_mode}")
 
-    raise RuntimeError(f"{case_name} の全物体をパックできませんでした。試行={attempts}")
+
+def validation_result(
+    command: list[str],
+    out_path: Path,
+    log_path: Path,
+    input_count: int,
+    parsed: dict,
+    timed_out: bool,
+    completed: bool,
+    tray: tuple[float, float, float],
+    voxel: float,
+    volume_slack: float,
+    footprint_fraction: float,
+    tray_mode: str,
+    container_ratio: list[float],
+    dims: list[tuple[float, float, float]],
+    attempts: list[dict],
+) -> dict:
+    metrics = bbox_metrics(dims)
+    tray_volume = tray[0] * tray[1] * tray[2]
+    result = {
+        "command": " ".join(command),
+        "output": str(out_path),
+        "log": str(log_path),
+        "input_objects": input_count,
+        "packed_objects": parsed["packed_objects"],
+        "voxel_density_percent": parsed["voxel_density_percent"],
+        "mesh_density_percent": parsed["mesh_density_percent"],
+        "ray_disassembly": parsed["ray_disassembly"],
+        "timed_out": timed_out,
+        "completed": completed,
+        "tray": [round(v, 4) for v in tray],
+        "voxel": voxel,
+        "tray_mode": tray_mode,
+        "volume_slack": volume_slack,
+        "footprint_fraction": footprint_fraction,
+        "sum_bbox_volume": metrics["sum_bbox_volume"],
+        "sum_bbox_xy_footprint": metrics["sum_bbox_xy_footprint"],
+        "tray_volume": tray_volume,
+        "tray_to_bbox_volume_ratio": tray_volume / metrics["sum_bbox_volume"],
+        "tray_footprint_area": tray[0] * tray[1],
+        "requires_stacking_by_bbox": tray[0] * tray[1]
+        < metrics["sum_bbox_xy_footprint"],
+        "max_bbox_extent": metrics["max_bbox_extent"],
+        "attempts": attempts,
+    }
+    if tray_mode == "container_equal_bbox_volume":
+        result["container_ratio"] = container_ratio
+    return result
 
 
 def compute_tight_tray(
@@ -313,6 +374,17 @@ def compute_tight_tray(
         round_up(depth, voxel),
         round_up(height, voxel),
     )
+
+
+def compute_container_equal_bbox_tray(
+    dims: list[tuple[float, float, float]],
+    ratio: list[float],
+) -> tuple[float, float, float]:
+    if len(ratio) != 3 or any(value <= 0 for value in ratio):
+        raise ValueError("container_ratio は3つの正の数にしてください")
+    volume = bbox_metrics(dims)["sum_bbox_volume"]
+    scale = (volume / math.prod(ratio)) ** (1.0 / 3.0)
+    return tuple(value * scale for value in ratio)
 
 
 def bbox_metrics(dims: list[tuple[float, float, float]]) -> dict:
