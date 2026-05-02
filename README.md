@@ -94,7 +94,7 @@ python3 scripts/fetch_abc_step_subset.py \
   --case-name abc_50 \
   --count 50 \
   --target-max-dim 4 \
-  --voxel 1 \
+  --voxel 0.5 \
   --footprint-fraction 0.55 \
   --complexity complex \
   --min-source-faces 20 \
@@ -107,7 +107,7 @@ python3 scripts/fetch_abc_step_subset.py \
   --case-name abc_100 \
   --count 100 \
   --target-max-dim 4 \
-  --voxel 1 \
+  --voxel 0.5 \
   --footprint-fraction 0.55 \
   --complexity complex \
   --min-source-faces 20 \
@@ -157,8 +157,8 @@ python3 scripts/publish_benchmark_results.py \
 
 | ケース | bboxタイトトレイ | ボクセル | パック数 | ボクセル密度 | トレイ底面 / bbox底面合計 |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `abc_100` | `20.2168 x 8.0621 x 8.2026` | `1` | 49/100 | 77.04% | 162.99 / 774.62 |
-| `abc_50` | `17.5691 x 7.0062 x 7.1283` | `1` | 29/50 | 76.02% | 123.09 / 445.96 |
+| `abc_100` | `20.2168 x 8.0621 x 8.2026` | `0.5` | 73/100 | 66.50% | 162.99 / 774.62 |
+| `abc_50` | `17.5691 x 7.0062 x 7.1283` | `0.5` | 40/50 | 60.22% | 123.09 / 445.96 |
 | `abc_micro` | `17.5 x 17.5 x 12.5` | `2.5` | 6/6 | 51.43% | 306.25 / 494.90 |
 
 ## STLファイルのパック

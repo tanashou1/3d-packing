@@ -44,14 +44,14 @@
     ]
   },
   "abc_50": {
-    "command": "target/release/spectral-packing pack samples/abc/abc_50 --out target/abc/tight_bbox/abc_50.stl --width 17.5691 --depth 7.00621 --height 7.12834 --voxel 1 --rotations 24 --height-weight 0.5 --beam-width 1",
+    "command": "target/release/spectral-packing pack samples/abc/abc_50 --out target/abc/tight_bbox/abc_50.stl --width 17.5691 --depth 7.00621 --height 7.12834 --voxel 0.5 --rotations 24 --height-weight 0.5 --beam-width 1",
     "output": "target/abc/tight_bbox/abc_50.stl",
     "log": "target/abc/tight_bbox/abc_50.log",
     "input_objects": 50,
-    "packed_objects": 29,
-    "voxel_density_percent": 76.02,
-    "mesh_density_percent": 16.81,
-    "ray_disassembly": "パック済み29個すべてがDirectional Blocking解析で取り出し可能（5パス）",
+    "packed_objects": 40,
+    "voxel_density_percent": 60.22,
+    "mesh_density_percent": 21.47,
+    "ray_disassembly": "パック済み40個すべてがDirectional Blocking解析で取り出し可能（7パス）",
     "timed_out": false,
     "completed": false,
     "tray": [
@@ -59,7 +59,7 @@
       7.0062,
       7.1283
     ],
-    "voxel": 1.0,
+    "voxel": 0.5,
     "tray_mode": "container_equal_bbox_volume",
     "volume_slack": 1.0,
     "footprint_fraction": 0.55,
@@ -84,7 +84,7 @@
         "volume_slack": 1.0,
         "footprint_fraction": 0.55,
         "tray_volume": 877.4482446924496,
-        "packed_objects": 29,
+        "packed_objects": 40,
         "return_code": 0,
         "timed_out": false
       }
@@ -96,14 +96,14 @@
     ]
   },
   "abc_100": {
-    "command": "target/release/spectral-packing pack samples/abc/abc_100 --out target/abc/tight_bbox/abc_100.stl --width 20.2168 --depth 8.06206 --height 8.20259 --voxel 1 --rotations 24 --height-weight 0.5 --beam-width 1",
+    "command": "target/release/spectral-packing pack samples/abc/abc_100 --out target/abc/tight_bbox/abc_100.stl --width 20.2168 --depth 8.06206 --height 8.20259 --voxel 0.5 --rotations 24 --height-weight 0.5 --beam-width 1",
     "output": "target/abc/tight_bbox/abc_100.stl",
     "log": "target/abc/tight_bbox/abc_100.log",
     "input_objects": 100,
-    "packed_objects": 49,
-    "voxel_density_percent": 77.04,
-    "mesh_density_percent": 18.61,
-    "ray_disassembly": "パック済み49個すべてがDirectional Blocking解析で取り出し可能（7パス）",
+    "packed_objects": 73,
+    "voxel_density_percent": 66.5,
+    "mesh_density_percent": 24.74,
+    "ray_disassembly": "66個はrayで取り出し可能。噛み込みの可能性があるグループが1個残っています",
     "timed_out": false,
     "completed": false,
     "tray": [
@@ -111,7 +111,7 @@
       8.0621,
       8.2026
     ],
-    "voxel": 1.0,
+    "voxel": 0.5,
     "tray_mode": "container_equal_bbox_volume",
     "volume_slack": 1.0,
     "footprint_fraction": 0.55,
@@ -136,7 +136,7 @@
         "volume_slack": 1.0,
         "footprint_fraction": 0.55,
         "tray_volume": 1336.9345669627098,
-        "packed_objects": 49,
+        "packed_objects": 73,
         "return_code": 0,
         "timed_out": false
       }
