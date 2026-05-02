@@ -1,0 +1,170 @@
+[
+  {
+    "source": "https://huggingface.co/datasets/turiya-ai/abc-cad-dataset-organized/resolve/main/step_files/simple/00000007_b33a147f86da49879455d286_step_000.step",
+    "source_dataset": "turiya-ai/abc-cad-dataset-organized",
+    "source_format": "step",
+    "converted_with": "gmsh",
+    "num_faces_converted": 320,
+    "normalized_max_dim": 10.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.0,
+        9.976687691905397,
+        1.394860758546478
+      ],
+      "extent": [
+        10.0,
+        9.976687691905397,
+        1.394860758546478
+      ]
+    },
+    "local_file": "000_00000007_b33a147f86da49879455d286_step_000.stl",
+    "dataset": "ABC Dataset",
+    "license_note": "ABC DatasetのCADモデル著作権は作成者に帰属します。HuggingFaceミラーのライセンス表示とOnshape Terms of Useに従ってください。"
+  },
+  {
+    "source": "https://huggingface.co/datasets/turiya-ai/abc-cad-dataset-organized/resolve/main/step_files/simple/00000009_9b3d6a97e8de4aa193b81000_step_001.step",
+    "source_dataset": "turiya-ai/abc-cad-dataset-organized",
+    "source_format": "step",
+    "converted_with": "gmsh",
+    "num_faces_converted": 578,
+    "normalized_max_dim": 10.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        7.3170731707317005,
+        7.3170731707317005,
+        10.0
+      ],
+      "extent": [
+        7.3170731707317005,
+        7.3170731707317005,
+        10.0
+      ]
+    },
+    "local_file": "001_00000009_9b3d6a97e8de4aa193b81000_step_001.stl",
+    "dataset": "ABC Dataset",
+    "license_note": "ABC DatasetのCADモデル著作権は作成者に帰属します。HuggingFaceミラーのライセンス表示とOnshape Terms of Useに従ってください。"
+  },
+  {
+    "source": "https://huggingface.co/datasets/turiya-ai/abc-cad-dataset-organized/resolve/main/step_files/simple/00000022_ad34a3f60c4a4caa99646600_step_002.step",
+    "source_dataset": "turiya-ai/abc-cad-dataset-organized",
+    "source_format": "step",
+    "converted_with": "gmsh",
+    "num_faces_converted": 544,
+    "normalized_max_dim": 10.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.0,
+        10.0,
+        10.0
+      ],
+      "extent": [
+        10.0,
+        10.0,
+        10.0
+      ]
+    },
+    "local_file": "002_00000022_ad34a3f60c4a4caa99646600_step_002.stl",
+    "dataset": "ABC Dataset",
+    "license_note": "ABC DatasetのCADモデル著作権は作成者に帰属します。HuggingFaceミラーのライセンス表示とOnshape Terms of Useに従ってください。"
+  },
+  {
+    "source": "https://huggingface.co/datasets/turiya-ai/abc-cad-dataset-organized/resolve/main/step_files/simple/00000061_767e4372b5f94a88a7a17d90_step_002.step",
+    "source_dataset": "turiya-ai/abc-cad-dataset-organized",
+    "source_format": "step",
+    "converted_with": "gmsh",
+    "num_faces_converted": 394,
+    "normalized_max_dim": 10.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.0,
+        10.0,
+        0.49999999999999994
+      ],
+      "extent": [
+        10.0,
+        10.0,
+        0.49999999999999994
+      ]
+    },
+    "local_file": "003_00000061_767e4372b5f94a88a7a17d90_step_002.stl",
+    "dataset": "ABC Dataset",
+    "license_note": "ABC DatasetのCADモデル著作権は作成者に帰属します。HuggingFaceミラーのライセンス表示とOnshape Terms of Useに従ってください。"
+  },
+  {
+    "source": "https://huggingface.co/datasets/turiya-ai/abc-cad-dataset-organized/resolve/main/step_files/simple/00000063_767e4372b5f94a88a7a17d90_step_004.step",
+    "source_dataset": "turiya-ai/abc-cad-dataset-organized",
+    "source_format": "step",
+    "converted_with": "gmsh",
+    "num_faces_converted": 266,
+    "normalized_max_dim": 10.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.0,
+        4.159292035398229,
+        0.22123893805309733
+      ],
+      "extent": [
+        10.0,
+        4.159292035398229,
+        0.22123893805309733
+      ]
+    },
+    "local_file": "004_00000063_767e4372b5f94a88a7a17d90_step_004.stl",
+    "dataset": "ABC Dataset",
+    "license_note": "ABC DatasetのCADモデル著作権は作成者に帰属します。HuggingFaceミラーのライセンス表示とOnshape Terms of Useに従ってください。"
+  },
+  {
+    "source": "https://huggingface.co/datasets/turiya-ai/abc-cad-dataset-organized/resolve/main/step_files/simple/00000102_5ed74bccca6f4e89829bcb5e_step_002.step",
+    "source_dataset": "turiya-ai/abc-cad-dataset-organized",
+    "source_format": "step",
+    "converted_with": "gmsh",
+    "num_faces_converted": 298,
+    "normalized_max_dim": 10.0,
+    "bbox": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        10.0,
+        9.999999998985723,
+        2.30038286123459
+      ],
+      "extent": [
+        10.0,
+        9.999999998985723,
+        2.30038286123459
+      ]
+    },
+    "local_file": "005_00000102_5ed74bccca6f4e89829bcb5e_step_002.stl",
+    "dataset": "ABC Dataset",
+    "license_note": "ABC DatasetのCADモデル著作権は作成者に帰属します。HuggingFaceミラーのライセンス表示とOnshape Terms of Useに従ってください。"
+  }
+]

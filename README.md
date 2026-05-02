@@ -81,6 +81,66 @@ python3 scripts/create_thingi10k_benchmark_case.py \
   --repeat 10
 ```
 
+## ABC Datasetベンチマークケースの作成
+
+ABC Datasetは巨大なCADモデル集合のため、数GB単位の公式tri-mesh/OBJチャンクは取得せず、HuggingFace上の整理済み軽量STEPサブセットから実データケースを作ります。`scripts/fetch_abc_step_subset.py` はsimple STEPを取得し、`gmsh` でSTL化して `samples/abc` 配下へ正規化STLを書き出します。
+
+```bash
+sudo apt-get install -y gmsh
+python3 scripts/fetch_abc_step_subset.py --output samples/abc
+
+python3 scripts/fetch_abc_step_subset.py \
+  --output samples/abc \
+  --case-name abc_50 \
+  --count 50 \
+  --target-max-dim 5 \
+  --voxel 2 \
+  --footprint-fraction 0.30
+```
+
+ABC Datasetを別途取得・展開済みの場合は、OBJ/STLが入ったディレクトリから追加ケースを生成できます。
+
+```bash
+python3 scripts/create_abc_benchmark_cases.py \
+  --source /path/to/extracted/abc_dataset \
+  --output samples/abc
+```
+
+生成されるケース:
+
+| ケース | モデル数 | 目的 |
+| --- | ---: | --- |
+| `abc_micro` | 6 | HuggingFace上のABC simple STEPから作る小さなCADスモークテスト |
+| `abc_50` | 50 | Pagesで確認できる中規模CAD積み上げベンチマーク |
+| `abc_small` | 12 | 低〜中面数CAD部品のbboxタイト検証 |
+| `abc_mixed` | 24 | より多いCAD部品の積み上げベンチマーク |
+
+`samples/abc/case_config.json` には検証用のボクセル幅と底面fractionが保存されます。ABCケースを検証するには次を実行します。
+
+```bash
+cargo build --release
+python3 scripts/validate_thingi10k_tight.py \
+  --samples samples/abc \
+  --case-config samples/abc/case_config.json \
+  --output target/abc/tight_bbox
+```
+
+検証したABC結果をGitHub Pagesビューアへ追加するには、検証後に公開アセットへ反映します。`docs/assets/results.json`、`docs/assets/packed/abc-*.stl`、`docs/assets/abc/*.json` が更新されます。
+
+```bash
+python3 scripts/publish_benchmark_results.py \
+  --dataset abc \
+  --samples samples/abc \
+  --validation target/abc/tight_bbox/validation.json
+```
+
+現在のABC結果:
+
+| ケース | bboxタイトトレイ | ボクセル | パック数 | ボクセル密度 | トレイ底面 / bbox底面合計 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `abc_50` | `16 x 16 x 28` | `2` | 50/50 | 67.08% | 256.00 / 744.32 |
+| `abc_micro` | `17.5 x 17.5 x 12.5` | `2.5` | 6/6 | 51.43% | 306.25 / 494.90 |
+
 ## STLファイルのパック
 
 サンプルディレクトリ内のSTLをまとめて1つのSTLへパックする例です。

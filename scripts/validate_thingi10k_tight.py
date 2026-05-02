@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thingi10Kケースをbbox由来のタイトなトレイへパックする。
+"""STLケースをbbox由来のタイトなトレイへパックする。
 
 各ケースについて、物体のバウンディングボックスからトレイを計算する。
 
@@ -39,7 +39,12 @@ def main() -> None:
     parser.add_argument("--samples", type=Path, default=Path("samples/thingi10k"))
     parser.add_argument("--output", type=Path, default=Path("target/thingi10k/tight_bbox"))
     parser.add_argument("--binary", type=Path, default=Path("target/release/spectral-packing"))
-    parser.add_argument("--case", action="append", choices=sorted(DEFAULT_CASES))
+    parser.add_argument("--case", action="append")
+    parser.add_argument(
+        "--case-config",
+        type=Path,
+        help="追加ケース設定JSON。未指定なら samples/case_config.json があれば読み込む",
+    )
     parser.add_argument("--rotations", type=int, default=24)
     parser.add_argument("--height-weight", type=float, default=0.5)
     parser.add_argument("--beam-width", type=int, default=1)
@@ -57,7 +62,8 @@ def main() -> None:
     if not args.binary.exists():
         subprocess.run(["cargo", "build", "--release", "--quiet"], check=True)
 
-    cases = args.case or sorted(DEFAULT_CASES)
+    case_configs = load_case_configs(args.samples, args.case_config)
+    cases = args.case or sorted(case_configs)
     args.output.mkdir(parents=True, exist_ok=True)
     validation_path = args.samples / "validation.json"
     if args.case and validation_path.exists():
@@ -65,7 +71,11 @@ def main() -> None:
     else:
         results = {}
     for case_name in cases:
-        config = DEFAULT_CASES[case_name]
+        if case_name not in case_configs:
+            raise KeyError(
+                f"未知のケースです: {case_name}。利用可能: {', '.join(sorted(case_configs))}"
+            )
+        config = case_configs[case_name]
         case_dir = args.samples / case_name
         if not case_dir.is_dir():
             raise FileNotFoundError(f"ケースディレクトリが見つかりません: {case_dir}")
@@ -102,6 +112,25 @@ def main() -> None:
     (args.output / "validation.json").write_text(
         json.dumps(results, indent=2, ensure_ascii=False) + "\n"
     )
+
+
+def load_case_configs(samples: Path, explicit_path: Path | None) -> dict:
+    configs = dict(DEFAULT_CASES)
+    config_path = explicit_path or samples / "case_config.json"
+    if config_path.exists():
+        loaded = json.loads(config_path.read_text(encoding="utf-8"))
+        for case_name, config in loaded.items():
+            if "voxel" not in config or "footprint_fraction" not in config:
+                raise ValueError(
+                    f"{config_path} の {case_name} には voxel と footprint_fraction が必要です"
+                )
+            configs[case_name] = {
+                "voxel": float(config["voxel"]),
+                "footprint_fraction": float(config["footprint_fraction"]),
+            }
+    elif explicit_path is not None:
+        raise FileNotFoundError(f"ケース設定が見つかりません: {explicit_path}")
+    return configs
 
 
 def validate_case(

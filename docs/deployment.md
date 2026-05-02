@@ -49,6 +49,7 @@ node --check docs/app.js
 ## 更新時の注意
 
 1. `docs/assets/results.json` はビューアが最初に読む結果一覧です。STLや検証JSONを追加したら、ここに表示対象を追加します。
-2. 大きなSTLを追加する場合は、Pages artifactのサイズとブラウザでの読み込み時間を確認します。
-3. 公開に必要なファイルは `docs/` 配下に置きます。`target/` やローカル検証ログは公開対象にしません。
-4. `gh-pages` ブランチへの手動pushは行いません。公開内容は `main` の `docs/` とActions実行結果から再現できる状態にします。
+2. ABC/Thingi10K検証結果は `scripts/publish_benchmark_results.py` で `docs/assets/` に反映できます。
+3. 大きなSTLを追加する場合は、Pages artifactのサイズとブラウザでの読み込み時間を確認します。
+4. 公開に必要なファイルは `docs/` 配下に置きます。`target/` やローカル検証ログは公開対象にしません。
+5. `gh-pages` ブランチへの手動pushは行いません。公開内容は `main` の `docs/` とActions実行結果から再現できる状態にします。

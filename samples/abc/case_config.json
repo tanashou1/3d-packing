@@ -1,0 +1,10 @@
+{
+  "abc_micro": {
+    "voxel": 2.5,
+    "footprint_fraction": 0.5
+  },
+  "abc_50": {
+    "voxel": 2.0,
+    "footprint_fraction": 0.3
+  }
+}
