@@ -4,7 +4,11 @@
     "footprint_fraction": 0.5
   },
   "abc_50": {
-    "voxel": 2.0,
-    "footprint_fraction": 0.3
+    "voxel": 1.0,
+    "footprint_fraction": 0.55
+  },
+  "abc_100": {
+    "voxel": 1.0,
+    "footprint_fraction": 0.55
   }
 }

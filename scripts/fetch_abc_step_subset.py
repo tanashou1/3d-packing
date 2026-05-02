@@ -2,7 +2,7 @@
 """HuggingFace上の軽量ABC STEPサブセットを取得し、STLベンチケースを作る。
 
 ABC Dataset本体のtri-mesh/OBJチャンクは数GB単位のため、Pagesで確認する
-小さな実データケースとして、整理済みHuggingFaceデータセットのsimple STEPを
+小さな実データケースとして、整理済みHuggingFaceデータセットのSTEPを
 固定またはAPIから列挙したリストで取得する。STEPからSTLへの変換には
 `gmsh` コマンドを使う。
 """
@@ -59,6 +59,12 @@ def main() -> None:
         help="STEP/STLの中間ファイル保存先。未指定なら一時ディレクトリを使う。",
     )
     parser.add_argument("--gmsh", default="gmsh")
+    parser.add_argument(
+        "--gmsh-timeout-seconds",
+        type=float,
+        default=45,
+        help="1 STEPあたりのgmsh変換タイムアウト秒数",
+    )
     parser.add_argument("--case-name", default=CASE_NAME)
     parser.add_argument("--count", type=int, default=CASE_CONFIG["count"])
     parser.add_argument("--target-max-dim", type=float, default=CASE_CONFIG["target_max_dim"])
@@ -68,10 +74,39 @@ def main() -> None:
     )
     parser.add_argument("--max-faces", type=int, default=2500)
     parser.add_argument(
+        "--min-faces",
+        type=int,
+        default=0,
+        help="変換後STLの面数がこの値未満なら単純すぎるものとしてスキップ",
+    )
+    parser.add_argument(
+        "--min-source-faces",
+        type=int,
+        default=0,
+        help="ABCメタデータ上のCAD face数がこの値未満ならスキップ",
+    )
+    parser.add_argument(
+        "--max-source-faces",
+        type=int,
+        help="ABCメタデータ上のCAD face数がこの値を超えるならスキップ",
+    )
+    parser.add_argument(
+        "--complexity",
+        choices=["simple", "complex", "all"],
+        default="simple",
+        help="HuggingFace上のSTEP分類。complexは製造業サンプル向けに細部が多い候補を優先する",
+    )
+    parser.add_argument(
+        "--candidate-offset",
+        type=int,
+        default=0,
+        help="APIで列挙した候補の先頭からスキップする件数",
+    )
+    parser.add_argument(
         "--max-candidates",
         type=int,
         default=300,
-        help="HuggingFace simple STEPを先頭から何件まで試すか",
+        help="HuggingFace STEPを何件まで試すか",
     )
     parser.add_argument(
         "--fixed-micro-list",
@@ -114,15 +149,37 @@ def build_case(args: argparse.Namespace, work_dir: Path) -> None:
     raw_stl_dir.mkdir(parents=True, exist_ok=True)
 
     metadata = []
-    source_paths = STEP_FILES if args.fixed_micro_list else discover_step_files(args.max_candidates)
+    source_paths = (
+        STEP_FILES
+        if args.fixed_micro_list
+        else discover_step_files(args.complexity, args.candidate_offset, args.max_candidates)
+    )
     for source_path in source_paths:
         if len(metadata) >= args.count:
             break
+        source_metadata = fetch_source_metadata(source_path)
+        source_faces = source_metadata.get("face_count")
+        if source_faces is not None and source_faces < args.min_source_faces:
+            print(f"{Path(source_path).name}: CAD face数{source_faces}が少ないためスキップしました")
+            continue
+        if (
+            args.max_source_faces is not None
+            and source_faces is not None
+            and source_faces > args.max_source_faces
+        ):
+            print(f"{Path(source_path).name}: CAD face数{source_faces}のためスキップしました")
+            continue
         step_path = step_dir / Path(source_path).name
         raw_stl_path = raw_stl_dir / f"{step_path.stem}.stl"
         download(source_path, step_path)
         try:
-            convert_step_to_stl(args.gmsh, step_path, raw_stl_path)
+            if not raw_stl_path.exists():
+                convert_step_to_stl(
+                    args.gmsh,
+                    step_path,
+                    raw_stl_path,
+                    args.gmsh_timeout_seconds,
+                )
             triangles = fetch_stl(raw_stl_path.resolve().as_uri())
         except Exception as error:
             print(f"{step_path.name}: 変換をスキップしました: {error}")
@@ -130,6 +187,10 @@ def build_case(args: argparse.Namespace, work_dir: Path) -> None:
             continue
         if len(triangles) > args.max_faces:
             print(f"{step_path.name}: 面数{len(triangles)}のためスキップしました")
+            raw_stl_path.unlink(missing_ok=True)
+            continue
+        if len(triangles) < args.min_faces:
+            print(f"{step_path.name}: 面数{len(triangles)}が少ないためスキップしました")
             raw_stl_path.unlink(missing_ok=True)
             continue
 
@@ -144,6 +205,8 @@ def build_case(args: argparse.Namespace, work_dir: Path) -> None:
                 "source": f"{DATASET_BASE_URL}/{source_path}",
                 "source_dataset": DATASET_SOURCE,
                 "source_format": "step",
+                "step_category": step_category(source_path),
+                "source_face_count": source_faces,
                 "converted_with": "gmsh",
                 "num_faces_converted": len(triangles),
                 "normalized_max_dim": args.target_max_dim,
@@ -180,16 +243,44 @@ def build_case(args: argparse.Namespace, work_dir: Path) -> None:
     )
 
 
-def discover_step_files(max_candidates: int) -> list[str]:
+def discover_step_files(
+    complexity: str,
+    candidate_offset: int,
+    max_candidates: int,
+) -> list[str]:
+    if candidate_offset < 0:
+        raise ValueError("--candidate-offset は0以上にしてください")
+    if max_candidates <= 0:
+        raise ValueError("--max-candidates は正の整数にしてください")
     with urllib.request.urlopen(DATASET_API_URL, timeout=120) as response:
         data = json.load(response)
+    prefixes = {
+        "simple": ["step_files/simple/"],
+        "complex": ["step_files/complex/"],
+        "all": ["step_files/complex/", "step_files/simple/"],
+    }[complexity]
     paths = [
         item["rfilename"]
         for item in data["siblings"]
-        if item["rfilename"].startswith("step_files/simple/")
+        if any(item["rfilename"].startswith(prefix) for prefix in prefixes)
         and item["rfilename"].endswith(".step")
     ]
-    return paths[:max_candidates]
+    return paths[candidate_offset : candidate_offset + max_candidates]
+
+
+def step_category(source_path: str) -> str:
+    parts = source_path.split("/")
+    if len(parts) >= 2 and parts[0] == "step_files":
+        return parts[1]
+    return "unknown"
+
+
+def fetch_source_metadata(source_path: str) -> dict:
+    stem = Path(source_path).with_suffix(".json").name
+    metadata_path = f"metadata/{stem}"
+    url = f"{DATASET_BASE_URL}/{metadata_path}"
+    with urllib.request.urlopen(url, timeout=120) as response:
+        return json.load(response)
 
 
 def update_json_map(path: Path, key: str, value: object) -> None:
@@ -212,12 +303,26 @@ def download(source_path: str, destination: Path) -> None:
         destination.write_bytes(response.read())
 
 
-def convert_step_to_stl(gmsh: str, step_path: Path, stl_path: Path) -> None:
+def convert_step_to_stl(
+    gmsh: str,
+    step_path: Path,
+    stl_path: Path,
+    timeout_seconds: float,
+) -> None:
+    command = [gmsh, str(step_path), "-3", "-format", "stl", "-o", str(stl_path), "-v", "1"]
+    if shutil.which("timeout") is not None:
+        command = [
+            "timeout",
+            "--kill-after=5s",
+            f"{timeout_seconds:g}s",
+            *command,
+        ]
     subprocess.run(
-        [gmsh, str(step_path), "-3", "-format", "stl", "-o", str(stl_path), "-v", "1"],
+        command,
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        timeout=timeout_seconds + 10,
     )
 
 

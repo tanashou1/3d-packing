@@ -83,7 +83,7 @@ python3 scripts/create_thingi10k_benchmark_case.py \
 
 ## ABC Datasetベンチマークケースの作成
 
-ABC Datasetは巨大なCADモデル集合のため、数GB単位の公式tri-mesh/OBJチャンクは取得せず、HuggingFace上の整理済み軽量STEPサブセットから実データケースを作ります。`scripts/fetch_abc_step_subset.py` はsimple STEPを取得し、`gmsh` でSTL化して `samples/abc` 配下へ正規化STLを書き出します。
+ABC Datasetは巨大なCADモデル集合のため、数GB単位の公式tri-mesh/OBJチャンクは取得せず、HuggingFace上の整理済み軽量STEPサブセットから実データケースを作ります。`scripts/fetch_abc_step_subset.py` はsimple/complex STEPを取得し、`gmsh` でSTL化して `samples/abc` 配下へ正規化STLを書き出します。
 
 ```bash
 sudo apt-get install -y gmsh
@@ -93,9 +93,27 @@ python3 scripts/fetch_abc_step_subset.py \
   --output samples/abc \
   --case-name abc_50 \
   --count 50 \
-  --target-max-dim 5 \
-  --voxel 2 \
-  --footprint-fraction 0.30
+  --target-max-dim 4 \
+  --voxel 1 \
+  --footprint-fraction 0.55 \
+  --complexity complex \
+  --min-source-faces 20 \
+  --max-source-faces 180 \
+  --min-faces 120 \
+  --max-faces 2000
+
+python3 scripts/fetch_abc_step_subset.py \
+  --output samples/abc \
+  --case-name abc_100 \
+  --count 100 \
+  --target-max-dim 4 \
+  --voxel 1 \
+  --footprint-fraction 0.55 \
+  --complexity complex \
+  --min-source-faces 20 \
+  --max-source-faces 180 \
+  --min-faces 120 \
+  --max-faces 2000
 ```
 
 ABC Datasetを別途取得・展開済みの場合は、OBJ/STLが入ったディレクトリから追加ケースを生成できます。
@@ -111,7 +129,8 @@ python3 scripts/create_abc_benchmark_cases.py \
 | ケース | モデル数 | 目的 |
 | --- | ---: | --- |
 | `abc_micro` | 6 | HuggingFace上のABC simple STEPから作る小さなCADスモークテスト |
-| `abc_50` | 50 | Pagesで確認できる中規模CAD積み上げベンチマーク |
+| `abc_50` | 50 | ABC complex STEPから作る製造業サンプル向け中規模ベンチマーク |
+| `abc_100` | 100 | ABC complex STEPから作る製造業サンプル向け大規模ベンチマーク |
 | `abc_small` | 12 | 低〜中面数CAD部品のbboxタイト検証 |
 | `abc_mixed` | 24 | より多いCAD部品の積み上げベンチマーク |
 
@@ -138,7 +157,8 @@ python3 scripts/publish_benchmark_results.py \
 
 | ケース | bboxタイトトレイ | ボクセル | パック数 | ボクセル密度 | トレイ底面 / bbox底面合計 |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `abc_50` | `16 x 16 x 28` | `2` | 50/50 | 67.08% | 256.00 / 744.32 |
+| `abc_100` | `21 x 21 x 7` | `1` | 100/100 | 56.59% | 441.00 / 774.62 |
+| `abc_50` | `16 x 16 x 8` | `1` | 50/50 | 51.61% | 256.00 / 445.96 |
 | `abc_micro` | `17.5 x 17.5 x 12.5` | `2.5` | 6/6 | 51.43% | 306.25 / 494.90 |
 
 ## STLファイルのパック
