@@ -48,10 +48,10 @@
     "output": "target/abc/tight_bbox/abc_50.stl",
     "log": "target/abc/tight_bbox/abc_50.log",
     "input_objects": 50,
-    "packed_objects": 40,
-    "voxel_density_percent": 60.22,
-    "mesh_density_percent": 21.47,
-    "ray_disassembly": "パック済み40個すべてがDirectional Blocking解析で取り出し可能（7パス）",
+    "packed_objects": 44,
+    "voxel_density_percent": 68.1,
+    "mesh_density_percent": 24.63,
+    "ray_disassembly": "パック済み44個すべてがDirectional Blocking解析で取り出し可能（9パス）",
     "timed_out": false,
     "completed": false,
     "tray": [
@@ -84,7 +84,7 @@
         "volume_slack": 1.0,
         "footprint_fraction": 0.55,
         "tray_volume": 877.4482446924496,
-        "packed_objects": 40,
+        "packed_objects": 44,
         "return_code": 0,
         "timed_out": false
       }
@@ -100,10 +100,10 @@
     "output": "target/abc/tight_bbox/abc_100.stl",
     "log": "target/abc/tight_bbox/abc_100.log",
     "input_objects": 100,
-    "packed_objects": 73,
-    "voxel_density_percent": 66.5,
-    "mesh_density_percent": 24.74,
-    "ray_disassembly": "66個はrayで取り出し可能。噛み込みの可能性があるグループが1個残っています",
+    "packed_objects": 84,
+    "voxel_density_percent": 71.98,
+    "mesh_density_percent": 26.3,
+    "ray_disassembly": "71個はrayで取り出し可能。噛み込みの可能性があるグループが1個残っています",
     "timed_out": false,
     "completed": false,
     "tray": [
@@ -136,7 +136,7 @@
         "volume_slack": 1.0,
         "footprint_fraction": 0.55,
         "tray_volume": 1336.9345669627098,
-        "packed_objects": 73,
+        "packed_objects": 84,
         "return_code": 0,
         "timed_out": false
       }

@@ -323,7 +323,7 @@ fn parse_pack_args(args: Vec<String>) -> Result<Command> {
     let mut height_weight = 10.0;
     let mut no_interlock = false;
     let mut no_refine = false;
-    let mut refine_margin = 0.05;
+    let mut refine_margin = 0.0;
     let mut no_ray_disassembly = false;
     let mut post_opt_passes = 4;
     let mut beam_width = 1;
@@ -462,7 +462,7 @@ where
 }
 
 fn usage() -> &'static str {
-    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す姿勢数。24超で追加角度姿勢も試す（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --beam-width N          残す部分配置候補数（既定値: 1）\n      --refine-margin N       refinement中の三角形AABBクリアランス（既定値: 0.05）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --repack-passes N       未配置物体向け局所再パックの最大パス数（既定値: 2）\n      --repack-window N       局所再パックで一度に外す配置済み物体数（既定値: 8）\n      --repack-unpacked-limit N 局所再パックで一度に試す未配置物体数（既定値: 8）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-repack             未配置物体向け局所再パックを無効化\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
+    "使い方:\n  spectral-packing sample [--output DIR]\n  spectral-packing pack [OPTIONS] <STL_OR_DIR>...\n\npackオプション:\n  -o, --out FILE              結合した出力STL（既定値: packed.stl）\n      --width N               トレイ幅（既定値: 80）\n      --depth N               トレイ奥行き（既定値: 80）\n      --height N              トレイ高さ（既定値: 60）\n      --voxel N               ボクセルサイズ（既定値: 2）\n      --rotations N           試す姿勢数。24超で追加角度姿勢も試す（既定値: 24）\n      --height-weight N       高さペナルティ係数（既定値: 10）\n      --beam-width N          残す部分配置候補数（既定値: 1）\n      --refine-margin N       refinement中の三角形クリアランス（既定値: 0）\n      --post-opt-passes N     取り外し・再挿入後処理の最大パス数（既定値: 4）\n      --repack-passes N       未配置物体向け局所再パックの最大パス数（既定値: 2）\n      --repack-window N       局所再パックで一度に外す配置済み物体数（既定値: 8）\n      --repack-unpacked-limit N 局所再パックで一度に試す未配置物体数（既定値: 8）\n      --time-limit-seconds N  指定秒数を超えたら部分結果で打ち切る\n      --no-repack             未配置物体向け局所再パックを無効化\n      --no-post-opt           取り外し・再挿入後処理を無効化\n      --no-refine             連続サブボクセルrefinementを無効化\n      --no-interlock          Flood-fill到達可能性フィルタを無効化\n      --no-ray-disassembly    ray-casting分解可能性解析を無効化"
 }
 
 struct PackResult {
@@ -776,7 +776,7 @@ fn place_with_candidate(
             ]
         })
         .collect();
-    let occupied_cells = occupied_cells_for_translation(tray, &best.oriented, translation);
+    let occupied_cells = occupied_cells_for_triangles(tray, &triangles);
     stamp_cells(tray, occupied, &occupied_cells);
     let bbox = bbox_of_triangles(&triangles);
     if log {
@@ -1635,43 +1635,48 @@ fn stamp_cells(tray: Tray, occupied: &mut [bool], cells: &[(usize, usize, usize)
     }
 }
 
-fn occupied_cells_for_translation(
-    tray: Tray,
-    object: &OrientedMesh,
-    translation: Vec3,
-) -> Vec<(usize, usize, usize)> {
-    let mut marked = vec![false; tray.len()];
+fn occupied_cells_for_triangles(tray: Tray, triangles: &[[Vec3; 3]]) -> Vec<(usize, usize, usize)> {
+    if triangles.is_empty() {
+        return Vec::new();
+    }
+    let (bbox_min, bbox_max) = bbox_of_triangles(triangles);
+    let x0 = voxel_floor(bbox_min.x, tray.voxel, tray.nx);
+    let y0 = voxel_floor(bbox_min.y, tray.voxel, tray.ny);
+    let z0 = voxel_floor(bbox_min.z, tray.voxel, tray.nz);
+    let x1 = voxel_ceil_exclusive(bbox_max.x, tray.voxel, tray.nx);
+    let y1 = voxel_ceil_exclusive(bbox_max.y, tray.voxel, tray.ny);
+    let z1 = voxel_ceil_exclusive(bbox_max.z, tray.voxel, tray.nz);
+    if x1 <= x0 || y1 <= y0 || z1 <= z0 {
+        return Vec::new();
+    }
+    let nx = x1 - x0;
+    let ny = y1 - y0;
+    let nz = z1 - z0;
+    let origin = Vec3::new(
+        x0 as f32 * tray.voxel,
+        y0 as f32 * tray.voxel,
+        z0 as f32 * tray.voxel,
+    );
+    let mut surface = vec![false; nx * ny * nz];
+    for tri in triangles {
+        mark_intersecting_voxels(
+            [tri[0] - origin, tri[1] - origin, tri[2] - origin],
+            tray.voxel,
+            nx,
+            ny,
+            nz,
+            &mut surface,
+        );
+    }
+    let occupied = fill_interior(&surface, nx, ny, nz);
     let mut cells = Vec::new();
-    for z in 0..object.nz {
-        for y in 0..object.ny {
-            for x in 0..object.nx {
-                if !object.occupied[idx(x, y, z, object.nx, object.ny)] {
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                if !occupied[idx(x, y, z, nx, ny)] {
                     continue;
                 }
-                let min = translation
-                    + Vec3::new(
-                        x as f32 * tray.voxel,
-                        y as f32 * tray.voxel,
-                        z as f32 * tray.voxel,
-                    );
-                let max = min + Vec3::new(tray.voxel, tray.voxel, tray.voxel);
-                let x0 = voxel_floor(min.x, tray.voxel, tray.nx);
-                let y0 = voxel_floor(min.y, tray.voxel, tray.ny);
-                let z0 = voxel_floor(min.z, tray.voxel, tray.nz);
-                let x1 = voxel_ceil_exclusive(max.x, tray.voxel, tray.nx);
-                let y1 = voxel_ceil_exclusive(max.y, tray.voxel, tray.ny);
-                let z1 = voxel_ceil_exclusive(max.z, tray.voxel, tray.nz);
-                for gz in z0..z1 {
-                    for gy in y0..y1 {
-                        for gx in x0..x1 {
-                            let grid_index = idx(gx, gy, gz, tray.nx, tray.ny);
-                            if !marked[grid_index] {
-                                marked[grid_index] = true;
-                                cells.push((gx, gy, gz));
-                            }
-                        }
-                    }
-                }
+                cells.push((x0 + x, y0 + y, z0 + z));
             }
         }
     }
@@ -1783,9 +1788,8 @@ fn collides_with_placed(
             if deadline.expired() {
                 return true;
             }
-            let bbox_a = bbox_of_triangle(tri_a);
             for tri_b in &object.triangles {
-                if bbox_overlap(bbox_a, bbox_of_triangle(tri_b), margin) {
+                if triangles_overlap(*tri_a, *tri_b, margin) {
                     return true;
                 }
             }
@@ -1811,6 +1815,68 @@ fn bbox_overlap(a: (Vec3, Vec3), b: (Vec3, Vec3), margin: f32) -> bool {
         && a.1.y + margin >= b.0.y
         && a.0.z <= b.1.z + margin
         && a.1.z + margin >= b.0.z
+}
+
+fn triangles_overlap(a: [Vec3; 3], b: [Vec3; 3], margin: f32) -> bool {
+    if !bbox_overlap(bbox_of_triangle(&a), bbox_of_triangle(&b), margin) {
+        return false;
+    }
+
+    let edges_a = triangle_edges(a);
+    let edges_b = triangle_edges(b);
+    let normal_a = edges_a[0].cross(edges_a[1]);
+    let normal_b = edges_b[0].cross(edges_b[1]);
+
+    if triangle_axis_separates(normal_a, &a, &b, margin)
+        || triangle_axis_separates(normal_b, &a, &b, margin)
+    {
+        return false;
+    }
+    for edge_a in edges_a {
+        for edge_b in edges_b {
+            if triangle_axis_separates(edge_a.cross(edge_b), &a, &b, margin) {
+                return false;
+            }
+        }
+    }
+
+    for edge in triangle_edges(a) {
+        if triangle_axis_separates(normal_a.cross(edge), &a, &b, margin)
+            || triangle_axis_separates(normal_b.cross(edge), &a, &b, margin)
+        {
+            return false;
+        }
+    }
+    for edge in triangle_edges(b) {
+        if triangle_axis_separates(normal_a.cross(edge), &a, &b, margin)
+            || triangle_axis_separates(normal_b.cross(edge), &a, &b, margin)
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn triangle_edges(tri: [Vec3; 3]) -> [Vec3; 3] {
+    [tri[1] - tri[0], tri[2] - tri[1], tri[0] - tri[2]]
+}
+
+fn triangle_axis_separates(axis: Vec3, a: &[Vec3; 3], b: &[Vec3; 3], margin: f32) -> bool {
+    const EPS: f32 = 1.0e-8;
+    if axis.dot(axis) <= EPS {
+        return false;
+    }
+    let (min_a, max_a) = project_triangle(axis, a);
+    let (min_b, max_b) = project_triangle(axis, b);
+    max_a + margin < min_b || max_b + margin < min_a
+}
+
+fn project_triangle(axis: Vec3, tri: &[Vec3; 3]) -> (f32, f32) {
+    let p0 = tri[0].dot(axis);
+    let p1 = tri[1].dot(axis);
+    let p2 = tri[2].dot(axis);
+    (p0.min(p1).min(p2), p0.max(p1).max(p2))
 }
 
 fn reachable_offsets(tray: Tray, object: &OrientedMesh, collision: &[f32]) -> Vec<bool> {
@@ -2992,6 +3058,36 @@ mod tests {
     }
 
     #[test]
+    fn triangle_overlap_rejects_coplanar_separated_triangles() {
+        let a = [
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
+        ];
+        let b = [
+            Vec3::new(1.2, 1.2, 0.0),
+            Vec3::new(2.2, 1.2, 0.0),
+            Vec3::new(1.2, 2.2, 0.0),
+        ];
+        assert!(!triangles_overlap(a, b, 0.0));
+    }
+
+    #[test]
+    fn triangle_overlap_accepts_real_intersection() {
+        let a = [
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(2.0, 0.0, 0.0),
+            Vec3::new(0.0, 2.0, 0.0),
+        ];
+        let b = [
+            Vec3::new(0.5, 0.5, -1.0),
+            Vec3::new(0.5, 0.5, 1.0),
+            Vec3::new(1.5, 0.5, 0.0),
+        ];
+        assert!(triangles_overlap(a, b, 0.0));
+    }
+
+    #[test]
     fn conservative_voxelization_marks_every_intersected_cell() {
         let tri = [
             Vec3::new(0.0, 0.0, 0.5),
@@ -3004,6 +3100,14 @@ mod tests {
         assert!(grid[idx(1, 1, 0, 4, 4)]);
         assert!(grid[idx(2, 0, 0, 4, 4)]);
         assert!(!grid[idx(3, 3, 0, 4, 4)]);
+    }
+
+    #[test]
+    fn occupied_cells_follow_subvoxel_translated_triangles() {
+        let tray = Tray::new(3.0, 3.0, 3.0, 1.0).unwrap();
+        let triangles = cuboid(Vec3::new(0.2, 0.2, 0.2), Vec3::new(0.8, 0.8, 0.8));
+        let cells = occupied_cells_for_triangles(tray, &triangles);
+        assert_eq!(cells, vec![(0, 0, 0)]);
     }
 
     #[test]
