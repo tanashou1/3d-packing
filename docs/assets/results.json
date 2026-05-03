@@ -88,25 +88,6 @@
     "trayVolume": 14062.5
   },
   {
-    "id": "thingi-stacked-mixed-10x",
-    "title": "Thingi10K 積み重ね混合 10倍",
-    "stl": "assets/packed/thingi10k-stacked-mixed-10x.stl",
-    "source": "Thingi10K公式APIとHuggingFace raw_meshes。stacked_mixedを10回複製した大規模ベンチマーク",
-    "attribution": "assets/thingi10k/stacked_mixed_10x-attribution.json",
-    "packedObjects": 131,
-    "inputObjects": 360,
-    "tray": "25 x 25 x 87.5",
-    "voxel": 2.5,
-    "voxelDensity": 74.11,
-    "meshDensity": 14.24,
-    "rayDisassembly": "131個すべてがDirectional Blocking解析で取り出し可能（5パス）",
-    "requiresStackingByBbox": true,
-    "sumBboxFootprint": 17908.99,
-    "trayFootprint": 625.0,
-    "sumBboxVolume": 46428.68,
-    "trayVolume": 54687.5
-  },
-  {
     "id": "thingi-stacked-mixed-10x-voxel1_5",
     "title": "Thingi10K 積み重ね混合 10倍（voxel 1.5）",
     "stl": "assets/packed/thingi10k-stacked-mixed-10x-voxel1_5.stl",
@@ -242,5 +223,28 @@
     "sumBboxVolume": 1963.8,
     "trayVolume": 3828.12,
     "attribution": "assets/abc/abc_micro-attribution.json"
+  },
+  {
+    "id": "thingi-stacked-mixed-10x",
+    "title": "Thingi10K 積み重ね混合 10倍",
+    "stl": "assets/packed/thingi10k-stacked-mixed-10x.stl",
+    "source": "Thingi10K公式APIとHuggingFace raw_meshes。stacked_mixedを10回複製した大規模ベンチマーク",
+    "packedObjects": 243,
+    "inputObjects": 360,
+    "tray": "25 x 25 x 122.5",
+    "voxel": 2.5,
+    "gridVoxels": 4900,
+    "voxelDensity": 90.63,
+    "meshDensity": 16.15,
+    "rayDisassembly": "パック済み243個すべてがDirectional Blocking解析で取り出し可能（3パス）",
+    "requiresStackingByBbox": true,
+    "sumBboxFootprint": 17908.99,
+    "trayFootprint": 625.0,
+    "sumBboxVolume": 46428.68,
+    "trayVolume": 76562.5,
+    "attribution": "assets/thingi10k/stacked_mixed_10x-attribution.json",
+    "trayMode": "bbox_tight",
+    "trayToBboxVolumeRatio": 1.649,
+    "note": "時間制限で打ち切った部分結果"
   }
 ]

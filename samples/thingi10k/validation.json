@@ -634,27 +634,29 @@
     ]
   },
   "stacked_mixed_10x": {
-    "command": "target/release/spectral-packing pack samples/thingi10k/stacked_mixed_10x --out target/thingi10k/benchmark_10x/stacked_mixed_10x.stl --width 25 --depth 25 --height 87.5 --voxel 2.5 --rotations 24 --height-weight 0.5 --time-limit-seconds 60",
+    "command": "target/release/spectral-packing pack samples/thingi10k/stacked_mixed_10x --out target/thingi10k/benchmark_10x/stacked_mixed_10x.stl --width 25 --depth 25 --height 122.5 --voxel 2.5 --rotations 24 --height-weight 0.5 --beam-width 1 --time-limit-seconds 60",
     "output": "target/thingi10k/benchmark_10x/stacked_mixed_10x.stl",
     "log": "target/thingi10k/benchmark_10x/stacked_mixed_10x.log",
     "input_objects": 360,
-    "packed_objects": 131,
-    "voxel_density_percent": 74.11,
-    "mesh_density_percent": 14.24,
-    "ray_disassembly": "パック済み131個すべてがDirectional Blocking解析で取り出し可能（5パス）",
-    "timed_out": false,
+    "packed_objects": 243,
+    "voxel_density_percent": 90.63,
+    "mesh_density_percent": 16.15,
+    "ray_disassembly": "パック済み243個すべてがDirectional Blocking解析で取り出し可能（3パス）",
+    "timed_out": true,
     "completed": false,
     "tray": [
       25.0,
       25.0,
-      87.5
+      122.5
     ],
     "voxel": 2.5,
-    "volume_slack": 1.05,
+    "tray_mode": "bbox_tight",
+    "volume_slack": 1.5,
     "footprint_fraction": 0.032,
     "sum_bbox_volume": 46428.678742572076,
     "sum_bbox_xy_footprint": 17908.993501848563,
-    "tray_volume": 54687.5,
+    "tray_volume": 76562.5,
+    "tray_to_bbox_volume_ratio": 1.6490346499952662,
     "tray_footprint_area": 625.0,
     "requires_stacking_by_bbox": true,
     "max_bbox_extent": [
@@ -671,9 +673,49 @@
         ],
         "volume_slack": 1.05,
         "footprint_fraction": 0.032,
-        "packed_objects": 131,
+        "tray_volume": 54687.5,
+        "packed_objects": 135,
         "return_code": 0,
         "timed_out": false
+      },
+      {
+        "tray": [
+          25.0,
+          25.0,
+          95.0
+        ],
+        "volume_slack": 1.15,
+        "footprint_fraction": 0.032,
+        "tray_volume": 59375.0,
+        "packed_objects": 153,
+        "return_code": 0,
+        "timed_out": false
+      },
+      {
+        "tray": [
+          25.0,
+          25.0,
+          107.5
+        ],
+        "volume_slack": 1.3,
+        "footprint_fraction": 0.032,
+        "tray_volume": 67187.5,
+        "packed_objects": 169,
+        "return_code": 0,
+        "timed_out": false
+      },
+      {
+        "tray": [
+          25.0,
+          25.0,
+          122.5
+        ],
+        "volume_slack": 1.5,
+        "footprint_fraction": 0.032,
+        "tray_volume": 76562.5,
+        "packed_objects": 243,
+        "return_code": 0,
+        "timed_out": true
       }
     ]
   }
